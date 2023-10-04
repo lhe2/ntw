@@ -22,6 +22,9 @@ in the figs folder, most up-to-date generated figures. (data is batched) in the 
 
 for analysis2:
 
+- pre-import
+  - fix column types
+- id lab individuals on TB diet
 - add 6ths, 7ths in to steps 2 and 3
 - add kill curves
 - check m/f ratios
