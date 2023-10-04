@@ -17,3 +17,20 @@ in the figs folder, most up-to-date generated figures. (data is batched) in the 
 * instar/temp: experiment type
 * a/l: adult or larva
 * growth/surv: growt or survival
+
+# todos
+
+for analysis2:
+
+- add 6ths, 7ths in to steps 2 and 3
+- add kill curves
+- check m/f ratios
+- write up better auto-mutate columns...: do it in R vs in excel..
+- make header names consistent before merging sheets
+- indicate source popns (lab, field, f1)
+- create columns to determine if pupation attempted, got stuck
+- redo ignores
+- compare actual 260 vs diurnal (need to figure out ids)
+- ignore overly long lived things
+
+# roadmap
