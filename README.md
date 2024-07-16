@@ -1,6 +1,6 @@
 # ntw
 
-code associated with analysing data from various ntw-related expts 👍
+code associated with analysing data from various ntw-related expts 👍 listed below are file contents
 
 ## 2024/...
 
@@ -24,9 +24,6 @@ to come!!!!! (separated from 2023 so i can organise/structure things a little di
 
     -   `ntw` and `tents` usage is same as the above
 
-```{=html}
-<!-- -->
-```
 -   `analyses_[EXPT].Rmd`: analysis scripts for different types of expts (modeling stuff, figure generation). data/things is loaded from the corresponding `helper` script
 
     -   the big 3 (in order of when i ran them during that time period mentioned above). larval growth/dev data collected for all; adult fertility/F1 data collected for `NTs` only
