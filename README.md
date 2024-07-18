@@ -1,16 +1,16 @@
 # ntw
 
-code associated with analysing data from various ntw-related expts 👍 listed below are file contents
+code associated with analysing data from various ntw-related expts 👍 repo contents below!
 
 ## 2024/...
 
-to come!!!!! (separated from 2023 so i can organise/structure things a little differently)
+to come!!!!! (separated from `2023/` so i can organise/structure things a little differently)
 
 ## 2023/...
 
 `2023/` includes code for spring 2022-fall 2023 ntw experiments. organisation in this is messy bc i didnt rlly plan ahead 😎
 
-### associated files
+### relevant scripts
 
 (listed in the order they should be used)
 
