@@ -10,9 +10,10 @@ goal: making figs/running stats for entsoc poster, focusing on lab bugs
 # 1. load data & packages
 
 ```{r}
-source("./helpers_entsoc.R")
+source("../util/helpers_entsoc.R")
+source("../../../2023/helpers_tents.R")
 
-source("../2023/helpers_tents.R")
+# source("../2023/helpers_tents.R") # pre-reorging
 
 dtents <- data_tstats 
 #%>% select(-c("trt.type", "trt.pair"))
