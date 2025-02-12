@@ -11,23 +11,15 @@ date: "2024-09-23"
 
 *notes:* this is mostly copied over from `cleaning_ox.Rmd` so some comments/notes have been taken out if u compare versions
 
+**rerun this script every time u want new, cleaned data**
+
 # 1. load data & packages
-
-```{r message = FALSE}
-
-##### if doing a major update of the sheet, archive the old one first
-
-library(tidyr)
-library(purrr)
-library(dplyr)
-library(lubridate) # for handling time stuff
-
-library(googlesheets4)
-```
 
 googlesheets import
 
 ```{r}
+source("../bin/import-gsheets.R")
+
 data <- read_sheet("https://docs.google.com/spreadsheets/d/1TOUsH7zNT6jF7SltYsD_8pK5tI7yR-Gqx-kDrodmJ00/edit?gid=1256964024", sheet = "ntw repeat", col_types = "c")
 
 incase <- data
