@@ -22,7 +22,7 @@ numbered directories are part of the analysis workflow. scripts related to the s
 
         -   some analyses have an additional `<analysis>_util.R` script supplying other helper/convenience functions.
 
-    -   `03-<task>/`: sources data objects from `02-wrangle/*.R`. necessary libraries should be loaded in on a per-script basis here (rather than being imported from `02-wrangle/*.R`).
+    -   `03-<task>/`: sources data objects from `02-wrangle/<analysis>.R`. necessary libraries should be loaded in on a per-script basis here (rather than being imported from ``` 02-wrangle/``<analysis>``.R ```).
 
         -   `stats`: does modeling
 
@@ -96,11 +96,11 @@ they are vaguely labeled as `[expt]_[response]`
 
 ------------------------------------------------------------------------
 
-# other directories & files
+## other directories & files
 
 -   `set-paths.R`: uses `here()` to establish a bunch of convenience items for relative pathing through the project folder
 
-## archive/...
+### archive/...
 
 `archive/` is an untracked directory that includes old versions of data, code, and figures for reference (from 2023/when this repo was first set up). new figures are tracked on google drive and are in the corresponding `figs/` directory for each year (see above)
 
@@ -111,6 +111,6 @@ labeling in `archive/figs/...`:
 -   growth/surv: growth or survival analyses
 -   A/B: cohort
 
-## notes/...
+### notes/...
 
 untracked directory, namely contains `todos.md` and other relevant wips/notes/etc.
