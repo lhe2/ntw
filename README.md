@@ -6,45 +6,55 @@ work is generally being grouped by field season they originated from.
 
 ## 2024/...
 
-`2024/` includes code for summer-fall 2024 ntw repeat expts (growth & fecundity) + ox str molecular expts (pilot + final). sorta similarly structured/named as `2023/` with a few differences.
+`2024/` includes code for summer-fall 2024 ntw repeat expts (growth & fecundity) + ox str molecular expts (pilot + final).
 
-### relevant scripts
+### analysis scripts
 
-generally categorised as `[type]_[expt]`:
+numbered directories are part of the analysis workflow. scripts related to the same analysis share the same file name. there is some extensive usage of `here()` in these scripts that does the heavy-lifting for the relative path navigation.
 
--   `[type]`:
+-   workflow
 
-    -   `cleaning`: cleans raw gsheets and outputs into `./data/...`
+    -   `01-cleaning/`: takes raw gsheets and outputs cleaned ones into `data/`
 
-    -   `helpers`: does some additional data cleaning/data & lib loading/convenience function defining for analysis scripts
+    -   `02-wrangle/`: takes cleaned `data/` and manipulates into suitable formats for downstream analyses.
 
-        -   `helpers_aesthetics.R` is a general aesthetics loader
+        -   `.Rmd`s are purled into `.R`s, which are sourced by the corresponding `03-<task>/` script.
 
-    -   `analyses`: generally takes cleaned data from corresponding `helpers` and generates outputs for `./figs/...` or modeling
+        -   some analyses have an additional `<analysis>_util.R` script supplying other helper/convenience functions.
 
--   `[expt]`: `*` = active. others are sorta for ref/temporary while 2024 data was being generated
+    -   `03-<task>/`: sources data objects from `02-wrangle/*.R`. necessary libraries should be loaded in on a per-script basis here (rather than being imported from `02-wrangle/*.R`).
 
-    -   `entsoc`: 2023 data only. for entsoc 2024 poster
+        -   `stats`: does modeling
 
-    -   `ntw-compare*`: 2023 + 2024 data. for main growth/dev/fertility stats.
+        -   `viz`: does visualisation
 
-    -   `ntw`: 2024 data only. for growth/dev
+-   analyses:
 
-    -   `ox*`: 2024 data only. for analysis of mol assays from bugs used in actual ox growth expt
+    -   active
 
-    -   `ox-growth*`: 2024 data only. for growth/dev of bugs used for ox str molecular work (pilot + actual expt)
+        -   `ntw-compare`: 2023 + 2024 data. for main growth/dev/fertility stats.
 
-    -   `tents`: 2024 data only. for fertility stats
+        -   `ox`: 2024 data only. for analysis of mol assays from bugs used in actual ox growth expt
 
-### 2024/figs/...
+        -   `ox-growth`: 2024 data only. for growth/dev of bugs used for ox str molecular work (incls pilot + actual expt)
 
-instead of by date like in `2023/`, loosely grouped by general project (see `[expt]`s above) \> response (responses grouped in subfolders if there's a lot). versions indicated by the appended date in the file name (`_yymmdd`)
+    -   archived
+
+        -   `entsoc`: 2023 data only. for entsoc 2024 poster
+
+        -   `ntw`: 2024 data only. for ntw growth/dev. superseded by `ntw-compare`
+
+        -   `tents`: 2024 data only. for ntw fertility stats. superseded by `ntw-compare`
 
 ### 2024/data...
 
-top level contains cleaned outputs from `cleaning_[expt].Rmd` scripts that go into the `helpers` and `analyses` scripts. upon cleaning, a copy of the output is automatically saved into `./archive/` with date (`yymmdd`) prepended into filename.
+top level contains cleaned outputs from `01-cleaning/` scripts that go into the `02-wrangle/` scripts. upon cleaning, a copy of the output is automatically saved into `./archive/` with date (`yymmdd`) prepended into filename. for the most part, this directory is autopopulated by the cleaning scripts.
 
-`./plates/` contains plate data of molecular ox str assays.
+`./plates/` contains plate data of molecular ox str assays that are manually added.
+
+### 2024/figs/...
+
+instead of by date like in `2023/`, loosely grouped by general project (see `[expt]`s above) \> response (responses grouped in subfolders if there's a lot). versions indicated by the appended date in the file name (`_yymmdd`). files are manually saved into this directory.
 
 ## 2023/...
 
@@ -84,9 +94,15 @@ generally these are grouped by the date they were created bc i usually only use 
 
 they are vaguely labeled as `[expt]_[response]`
 
+------------------------------------------------------------------------
+
+# other directories & files
+
+-   `set-paths.R`: uses `here()` to establish a bunch of convenience items for relative pathing through the project folder
+
 ## archive/...
 
-`archive/` includes old versions of data, code, and figures for reference (from 2023/when this repo was first set up). new figures are tracked on google drive and are in the corresponding `figs/` directory for each year (see above)
+`archive/` is an untracked directory that includes old versions of data, code, and figures for reference (from 2023/when this repo was first set up). new figures are tracked on google drive and are in the corresponding `figs/` directory for each year (see above)
 
 labeling in `archive/figs/...`:
 
@@ -94,3 +110,7 @@ labeling in `archive/figs/...`:
 -   a/l: adult or larva
 -   growth/surv: growth or survival analyses
 -   A/B: cohort
+
+## notes/...
+
+untracked directory, namely contains `todos.md` and other relevant wips/notes/etc.
