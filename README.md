@@ -46,6 +46,10 @@ numbered directories are part of the analysis workflow. scripts related to the s
 
         -   `tents`: 2024 data only. for ntw fertility stats. superseded by `ntw-compare`
 
+-   misc files
+
+    -   `feasibility.Rmd`: figs and stats for 2025 feasibility document, exported to corresponding directories in `data/` and `figs/`. (doc writing is in an entirely separate repo!!)
+
 ### 2024/data...
 
 top level contains cleaned outputs from `01-cleaning/` scripts that go into the `02-wrangle/` scripts. upon cleaning, a copy of the output is automatically saved into `./archive/` with date (`yymmdd`) prepended into filename. for the most part, this directory is autopopulated by the cleaning scripts.
