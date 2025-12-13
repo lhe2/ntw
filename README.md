@@ -8,13 +8,13 @@ files are loosely organised by year of the field season that the data originated
 
 overview of contents are below, but see year-specific `README`s for details about directory-specific contents and workflows.
 
--   [2025](/2025/2025-readme.md)
+-   [`2025/`](/2025/2025-readme.md)
 
     -   `ntw/`: summer 2025 update of ntw data analyses; collates all ntw data from 2023-25
 
     -   `tdt/`: summer 2025 recovery expts
 
--   [2024](/2024/2024-readme.md)
+-   [`2024/`](/2024/2024-readme.md)
 
     -   folders are split up into data processing steps (cleaning, wrangling, analysis, etc).
 
@@ -36,7 +36,7 @@ overview of contents are below, but see year-specific `README`s for details abou
 
         -   `bsft`: figs only; for may 2025 bsft talk
 
--   [2023](/2023/2023-readme.md)
+-   [`2023/`](/2023/2023-readme.md)
 
     -   scripts are named as `purpose_expt.ext` .
 
@@ -50,7 +50,13 @@ overview of contents are below, but see year-specific `README`s for details abou
 
         -   `F1s`: hatchlings from `NTs` expts (mainly fall 2024)
 
-### comments on the overall workflow
+-   root:
+
+    -   `set-paths.R`: uses `here()` to establish a bunch of convenience items for relative pathing through the project folder
+
+    -   `notes/`: untracked directory, namely contains `todos.md` and other script wips/notes/etc. (but todos were replaced by a [gh project](#0) as of jul 2025)
+
+## overall workflow
 
 -   pathing throughout the project directory is achieved with the `set-paths.R` script at the root.
 
@@ -69,11 +75,3 @@ overview of contents are below, but see year-specific `README`s for details abou
         -   `helper.R` or `util.R` scripts may either be associated to a specific script or multiple scripts.
 
         -   2024 onwards starts to make use of purled pre-wrangle scripts for ntw data.
-
-------------------------------------------------------------------------
-
-## other useful things in this folder
-
--   `set-paths.R`: uses `here()` to establish a bunch of convenience items for relative pathing through the project folder
-
--   `notes/`: untracked directory, namely contains `todos.md` and other script wips/notes/etc.
