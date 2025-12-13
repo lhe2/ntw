@@ -2,119 +2,78 @@
 
 code associated with analysing data from various ntw-related expts 👍 repo contents below!
 
-work is generally being grouped by field season they originated from.
+## general organisation
 
-## 2024/...
+files are loosely organised by year of the field season that the data originated from. generally, look to the most recent year for the most recent + updated collation of data (bc i am not very consistent about how i do things lol).
 
-`2024/` includes code for summer-fall 2024 ntw repeat expts (growth & fecundity) + ox str molecular expts (pilot + final).
+overview of contents are below, but see year-specific `README`s for details about directory-specific contents and workflows.
 
-### analysis scripts
+-   [2025](/2025/2025-readme.md)
 
-numbered directories are part of the analysis workflow. scripts related to the same analysis share the same file name. there is some extensive usage of `here()` in these scripts that does the heavy-lifting for the relative path navigation.
+    -   `ntw/`: summer 2025 update of ntw data analyses; collates all ntw data from 2023-25
 
--   workflow
+    -   `tdt/`: summer 2025 recovery expts
 
-    -   `01-cleaning/`: takes raw gsheets and outputs cleaned ones into `data/`
+-   [2024](/2024/2024-readme.md)
 
-    -   `02-wrangle/`: takes cleaned `data/` and manipulates into suitable formats for downstream analyses.
+    -   folders are split up into data processing steps (cleaning, wrangling, analysis, etc).
 
-        -   `.Rmd`s are purled into `.R`s, which are sourced by the corresponding `03-<task>/` script.
+    -   expts for this year are split up thruout the folders:
 
-        -   some analyses have an additional `<analysis>_util.R` script supplying other helper/convenience functions.
+        -   summer 2024 update of `ntw` analyses
 
-    -   `03-<task>/`: sources data objects from `02-wrangle/<analysis>.R`. necessary libraries should be loaded in on a per-script basis here (rather than being imported from ``` 02-wrangle/``<analysis>``.R ```).
+        -   summer 2024 oxidative stress expts:
 
-        -   `stats`: does modeling
+            -   `ox-growth`: larval development data
 
-        -   `viz`: does visualisation
+            -   `plates`: analyses of molecular assays
 
--   analyses:
+    -   some other outputs in this year (collating 2023-24 ntw data)
 
-    -   active
+        -   `feasibility`: scripts + figs related to may 2025 feasibility exam
 
-        -   `ntw-compare`: 2023 + 2024 data. for main growth/dev/fertility stats.
+        -   `entsoc`: scripts + figs related to poster for nov 2024 entsoc meeting
 
-        -   `ox`: 2024 data only. for analysis of mol assays from bugs used in actual ox growth expt
+        -   `bsft`: figs only; for may 2025 bsft talk
 
-        -   `ox-growth`: 2024 data only. for growth/dev of bugs used for ox str molecular work (incls pilot + actual expt)
+-   [2023](/2023/2023-readme.md)
 
-    -   archived
+    -   scripts are named as `purpose_expt.ext` .
 
-        -   `entsoc`: 2023 data only. for entsoc 2024 poster
+    -   expts are mainly all the flavors of the ntw expts from spring 2023, summer-fall 2024.
 
-        -   `ntw`: 2024 data only. for ntw growth/dev. superseded by `ntw-compare`
+        -   `temps`: 2x2 (sp 2023)
 
-        -   `tents`: 2024 data only. for ntw fertility stats. superseded by `ntw-compare`
+        -   `acc`: examining damage accumulation (sp 2023)
 
--   misc files
+        -   `NTs`: different NTs (aka what is referred to as `ntw` in following years) (spans all seasons)
 
-    -   `feasibility.Rmd`: figs and stats for 2025 feasibility document, exported to corresponding directories in `data/` and `figs/`. (doc writing is in an entirely separate repo!!)
+        -   `F1s`: hatchlings from `NTs` expts (mainly fall 2024)
 
-### 2024/data...
+### comments on the overall workflow
 
-top level contains cleaned outputs from `01-cleaning/` scripts that go into the `02-wrangle/` scripts. upon cleaning, a copy of the output is automatically saved into `./archive/` with date (`yymmdd`) prepended into filename. for the most part, this directory is autopopulated by the cleaning scripts.
+-   pathing throughout the project directory is achieved with the `set-paths.R` script at the root.
 
-`./plates/` contains plate data of molecular ox str assays that are manually added.
+-   all year folders generally have the following folders (untracked), specific to the folder's year unless otherwise indicated.
 
-### 2024/figs/...
+    -   `data/`: raw and cleaned data
 
-instead of by date like in `2023/`, loosely grouped by general project (see `[expt]`s above) \> response (responses grouped in subfolders if there's a lot). versions indicated by the appended date in the file name (`_yymmdd`). files are manually saved into this directory.
+    -   `figs/`: manually exported figures (also tracked on google drive)
 
-## 2023/...
+    -   `etc/`: archived figs/scripts
 
-`2023/` includes code for spring 2022-fall 2023 ntw experiments. organisation in this is messy bc i didnt rlly plan ahead 😎
+-   generally, purpose of the script can be identified in the file name; scripts should be run in the following order:
 
-### relevant scripts
+    -   cleaning (import) \> wrangling (tidying) \> analysis (viz/figures)
 
-(listed in the order they should be used)
+        -   `helper.R` or `util.R` scripts may either be associated to a specific script or multiple scripts.
 
--   `cleaning_[EXPT].Rmd`: data cleaning scripts (pulls data from the gsheets); outputs into `./data/`
-
-    -   `ntw`: larval growth/dev stuff for the big 3 expts + F1s
-
-    -   `tents`: parsing out adult/tents stuff (longevity, parents, hatching)
-
--   `helpers_[EXPT].R`: data/library loading & pre-wrangling for the analysis scripts; defines some convenience functions/aesthetic objects to be used for analyses
-
-    -   `ntw` and `tents` usage is same as the above
-
--   `analyses_[EXPT].Rmd`: analysis scripts for different types of expts (modeling stuff, figure generation). data/things is loaded from the corresponding `helper` script
-
-    -   the big 3 (in order of when i ran them during that time period mentioned above). larval growth/dev data collected for all; adult fertility/F1 data collected for `NTs` only
-
-        -   `temps`: 2x2 temps
-        -   `acc`: looking for damage accumulation
-        -   `NTs`: diff nts
-
-    -   bonus/followups
-
-        -   `ctrls`: ntw expt-wide & internal controls for the big 3 expts
-        -   `tents`: adult fertility followups for `NT` bugs
-        -   `F1s`: 2nd gen development/growth stuff for `NT` bugs
-
-### 2023/figs/...
-
-generally these are grouped by the date they were created bc i usually only use the most recent version of a figure. good luck navigating this folder
-
-they are vaguely labeled as `[expt]_[response]`
+        -   2024 onwards starts to make use of purled pre-wrangle scripts for ntw data.
 
 ------------------------------------------------------------------------
 
-## other directories & files
+## other useful things in this folder
 
 -   `set-paths.R`: uses `here()` to establish a bunch of convenience items for relative pathing through the project folder
 
-### archive/...
-
-`archive/` is an untracked directory that includes old versions of data, code, and figures for reference (from 2023/when this repo was first set up). new figures are tracked on google drive and are in the corresponding `figs/` directory for each year (see above)
-
-labeling in `archive/figs/...`:
-
--   instar/temp: experiment type
--   a/l: adult or larva
--   growth/surv: growth or survival analyses
--   A/B: cohort
-
-### notes/...
-
-untracked directory, namely contains `todos.md` and other relevant wips/notes/etc.
+-   `notes/`: untracked directory, namely contains `todos.md` and other script wips/notes/etc.
