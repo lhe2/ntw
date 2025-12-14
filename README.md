@@ -54,7 +54,7 @@ overview of contents are below, but see year-specific `README`s for details abou
 
     -   `set-paths.R`: uses `here()` to establish a bunch of convenience items for relative pathing through the project folder
 
-    -   `notes/`: untracked directory, namely contains `todos.md` and other script wips/notes/etc. (but todos were replaced by a [gh project](#0) as of jul 2025)
+    -   `notes/`: untracked directory, namely contains `todos.md` and other script wips/notes/etc. (but todos were replaced by a [gh project](https://github.com/users/lhe2/projects/2/) as of jul 2025)
 
 ## overall workflow
 
