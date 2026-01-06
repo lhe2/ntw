@@ -1,77 +1,69 @@
 # ntw
 
-code associated with analysing data from various ntw-related expts 👍 repo contents below!
+code associated with analysing data from various ntw-related expts 👍
 
-## general organisation
+this repo compiles multiple projects, so see also project-specific readmes.
 
-files are loosely organised by year of the field season that the data originated from. generally, look to the most recent year for the most recent + updated collation of data (bc i am not very consistent about how i do things lol).
+## projects
 
-overview of contents are below, but see year-specific `README`s for details about directory-specific contents and workflows.
+this repo is primarily organised into three main `<project>/` directories; the [here](https://here.r-lib.org/) package is used for relative pathfinding throughout the repo.
 
--   [`2025/`](/2025/2025-readme.md)
+-   `_ntw`: ntw expts from 2023-25.
 
-    -   `ntw/`: summer 2025 update of ntw data analyses; collates all ntw data from 2023-25
+-   `_ox`: ox stress expts from 2024.
 
-    -   `tdt/`: summer 2025 recovery expts
+-   `_tdt`: tdt/recovery expts from 2025.
 
--   [`2024/`](/2024/2024-readme.md)
+### project directory organisation
 
-    -   folders are split up into data processing steps (cleaning, wrangling, analysis, etc).
+each `<project>/` directory has the following structure (untracked (UT) directories are indicated):
 
-    -   expts for this year are split up thruout the folders:
+-   `data/`: (UT) raw and cleaned data; grouped by year.
 
-        -   summer 2024 update of `ntw` analyses
+-   `figs/`: (UT, but tracked on google drive) manually exported figures. grouped by year; most up-to-date figs are in the most recent year.
 
-        -   summer 2024 oxidative stress expts:
+-   `scripts/`: data import, cleaning, and analysis scripts.
 
-            -   `ox-growth`: larval development data
+    -   `R/`: `tidy*.R` and `wrangle*.R` scripts generated from their `.Rmd` counterparts by the [knitr](https://yihui.org/knitr/) package. (UT)
 
-            -   `plates`: analyses of molecular assays
+    -   `*-util.R`: custom utility functions.
 
-    -   some other outputs in this year (collating 2023-24 ntw data)
+    -   `import*`: data import and mild cleaning.
 
-        -   `feasibility`: scripts + figs related to may 2025 feasibility exam
+    -   `tidy*`: converting data to tidy format.
 
-        -   `entsoc`: scripts + figs related to poster for nov 2024 entsoc meeting
+    -   `wrangle*`: generation of summary statistics, etc (usually for downstream visualisations).
 
-        -   `bsft`: figs only; for may 2025 bsft talk
+    -   `analysis*`: primary scripts for statistical analyses and data visualisations (stats/viz are usually separate scripts). sources tidying/wrangle scripts from `scripts/R/`.
 
--   [`2023/`](/2023/2023-readme.md)
+the following untracked directories recur at multiple levels of the repo, primarily serving administrative functions:
 
-    -   scripts are named as `purpose_expt.ext` .
+-   `archive/`: catch-all archive for code, figures, notes, etc.
 
-    -   expts are mainly all the flavors of the ntw expts from spring 2023, summer-fall 2024.
+-   `dump/`: generally, wip files/experimenting.
 
-        -   `temps`: 2x2 (sp 2023)
+-   `etc/`: generally, administrative files (notes, todos, etc) or aliases to related, external files not in the repo.
 
-        -   `acc`: examining damage accumulation (sp 2023)
+## outputs
 
-        -   `NTs`: different NTs (aka what is referred to as `ntw` in following years) (spans all seasons)
+scripts related to generating outputs (talks, writing, etc) from the three main projects are stored the `outputs/` directory in the repo root; outputs draw across different projects.
 
-        -   `F1s`: hatchlings from `NTs` expts (mainly fall 2024)
+the structure of each `<output>/` directory loosely follows the structure of the `<project>/` directories, but tend to have more files related to wrangling/analysis.
 
--   root:
+| directory             | product/contents | data sources              |
+|-----------------------|------------------|---------------------------|
+| `2025-05_bsft`        | ppt (figs only)  | ntw 23-24/feasibility viz |
+| `2025-05_feasibility` | document, ppt    | ntw 23-24                 |
+| `2024-11_entsoc`      | poster           | ntw 23-24                 |
 
-    -   `set-paths.R`: uses `here()` to establish a bunch of convenience items for relative pathing through the project folder
+## script update status
 
-    -   `notes/`: untracked directory, namely contains `todos.md` and other script wips/notes/etc. (but todos were replaced by a [gh project](https://github.com/users/lhe2/projects/2/) as of jul 2025)
+⚠️ as of 2026-01-05: some files in `.../scripts/` are not yet up-to-date/compatible/standardised to the 2025 workflow (above) after [major repo reorganisation](https://github.com/lhe2/ntw/tree/c6d51d2d20742d4ad07bfc9145b36ca47caef3c7). see below for issues/status.
 
-## overall workflow
-
--   pathing throughout the project directory is achieved with the `set-paths.R` script at the root.
-
--   all year folders generally have the following folders (untracked), specific to the folder's year unless otherwise indicated.
-
-    -   `data/`: raw and cleaned data
-
-    -   `figs/`: manually exported figures (also tracked on google drive)
-
-    -   `etc/`: archived figs/scripts
-
--   generally, purpose of the script can be identified in the file name; scripts should be run in the following order:
-
-    -   cleaning (import) \> wrangling (tidying) \> analysis (viz/figures)
-
-        -   `helper.R` or `util.R` scripts may either be associated to a specific script or multiple scripts.
-
-        -   2024 onwards starts to make use of purled pre-wrangle scripts for ntw data.
+|   | import | wrangle | analysis | comments |
+|---------------|---------------|---------------|---------------|---------------|
+| `_ox/dev` | needs overhaul (minor?) | needs separation from analysis scripts | outdated paths; broken helper scripts | uses 2024 ntw workflow |
+| `_ox/plates` | -- | -- | import/wrangle/analysisin single script | uses 2024 ntw workflow |
+| `_tdt/dev` | needs overhaul (minor) | outdated paths | outdated paths; needs overhaul (major) | close to current workflow |
+| `output/feasibility/` | n/a | -- | wrangle/analysis in single script | check data compatibility |
+| `output/entsoc/` | n/a | outdated paths | outdated paths | check data compatibility |
