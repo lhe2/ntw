@@ -1,0 +1,17 @@
+---
+title: "tidy tdt"
+date: "2026-01-06
+---
+
+# 0. preamble
+
+get 2025 data into tidy format.
+
+rerun the purling as needed to update the tidying script
+
+roadmap
+- purling stuff
+- import data, libs
+- make new columns, binaries, etc
+- cleanup
+

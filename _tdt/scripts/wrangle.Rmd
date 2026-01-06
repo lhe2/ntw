@@ -1,0 +1,15 @@
+---
+title: "tidy tdt"
+date: "2026-01-06"
+---
+
+# preamble
+
+wrangle 2025 tdt data for summary statistics, etc
+
+roadmap
+- purling stuff
+- load tidied data, libs
+- calc ss for viz
+- susbets?
+

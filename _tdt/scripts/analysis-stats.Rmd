@@ -1,0 +1,17 @@
+---
+title: "tdt stats"
+date: "2026-01-06"
+---
+
+analyse tdt stats
+
+TODO
+- before
+  - import data
+  - import utils
+  - make subsets(?)
+- analysis
+  - effects of cohort; shelves; controls
+  - survival
+  - km stuff
+
