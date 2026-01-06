@@ -8,11 +8,11 @@ this repo compiles multiple projects, so see also project-specific readmes.
 
 this repo is primarily organised into three main `<project>/` directories; the [here](https://here.r-lib.org/) package is used for relative pathfinding throughout the repo.
 
--   `_ntw`: ntw expts from 2023-25.
+-   [`_ntw`](/_ntw/readme.md): ntw expts from 2023-25.
 
--   `_ox`: ox stress expts from 2024.
+-   [`_ox`](/_ox/readme.md): ox stress expts from 2024.
 
--   `_tdt`: tdt/recovery expts from 2025.
+-   [`_tdt`](/_tdt/readme.md): tdt/recovery expts from 2025.
 
 ### project directory organisation
 
