@@ -1,74 +1,95 @@
 ---
-title: "2025 TDT data cleaning"
-date: "2025-06-14"
+title: "import 2025 tdt data"
+date: "2026-01-07"
 ---
 
-# 0. roadmap
-
-1. load data & packages; pre-filtering
-2. column formatting + rearrangement
-3. save output into `2025/data/`
-
-re-run script whenever the gsheets gets updated
+# preamble
 
 
-# 1. loading
+## roadmap
 
-## - data and packages
-```{r message = FALSE}
-library(tidyr)
-library(purrr)
-library(dplyr)
-library(lubridate) # for handling time stuff
+-   loading
+-   filtering and fixes
+    -   filter out bad bugs
+    -   fix timepoints (for consistency)
+    -   fix weights
+    - fix parsing of culled vs died
+    - fix instar exits
+-   standardising
+    -   times
+        -   calculate dh cols
+        -   recalculate exits for ctrls/culled
+        -   convert julian dates
+    -   binaries?
+        -   determine fates (for KM?)
+
+# loading
+
+## - packages
+
+```{r loading message = FALSE}
+library(tidyverse)
+library(lubridate) # for as_datetime
 library(googlesheets4)
 
-here::i_am("2025/tdt/cleaning.Rmd")
+here::i_am("_tdt/scripts/import.Rmd")
 library(here)
-
-source(here::here("set-paths.R"))
 ```
 
-## - googlesheets import
+## - data
 
-```{r}
-# need to correct dates (add 2025)
-raw <- read_sheet("https://docs.google.com/spreadsheets/d/1rxZSI-8ubhMkeM2Sh1xNi5IKF0Vt_BDFItAg_Ak476M/edit?gid=1826657546#gid=1826657546", 
-                  sheet = "tdt jun 2025",
-                  col_types = "c",
-                  na = c("#VALUE!")) %>%
-  drop_na() %>%
-  na_if("--") %>% na_if("")
-
-data <- raw %>% 
+```{r import}
+# import corrections:
+  # prefix "2025" to dates
+  # replace commas in notes
+  # remove "dv." col bc not correctly calculated in gsheets...
+df_raw <-
+  read_sheet("https://docs.google.com/spreadsheets/d/1rxZSI-8ubhMkeM2Sh1xNi5IKF0Vt_BDFItAg_Ak476M/edit?gid=1826657546#gid=1826657546",
+             sheet = "tdt jun 2025", col_types = "c", na = c("#VALUE!")) %>%
+  drop_na() %>% na_if("--") %>% na_if("") %>%
+  mutate(across(starts_with("date."), ~ str_c("2025/", .)),
+         across(notes, gsub, pattern = ",", replacement = ";")) %>%
   rename(trt = treatment) %>%
-  mutate(trt.recover = case_when(trt.type == "ctrl" ~ NA_character_,
-                                 TRUE ~ trt.recover)) %>%
-  select(-c(trt.type, starts_with("dv"))) %>%
-  mutate(across(starts_with("date."), ~ stringr::str_c("2025/", .))) # didnt add "2025" to dates so add here
+  select(-starts_with("dv"))
 ```
 
-# 2. format standardising + fixing
+# filtering and fixes
+    
+## - fix values
 
-## - filtering bad bugs
+filter bugs accidentally culled before 3rd (dont fix `instar.exit` before this)
 
-```{r}
-# pull out accidentally culled before 3rd (fate = 2, instar.exit < 3)
-data <- data %>%
-  filter(!(fate == 2 & instar.exit < 3) | is.na(fate)) # retain is.na(fate) for things still developing
+weights: 
+  - drop masses of bugs at molts/return to 40C if they were already dead by the am (weight will not be accurate)
 
-data[, 'notes'] <- lapply(data[, 'notes'], gsub, pattern=",", replacement = "&") 
-  # replaces commas w/ &'s to avoid csv breakage after export
-```
+standardise timepts (align everything to `hatch.time`):
+  - R2 d2 pm expt bugs recover time (returned late)
+  - R3 d2 expt bugs recover time (data entry typo?)
+  - R3 d2 26C bugs enter time (entered late)
+  
+parse culled vs died better
 
-## - fixing timepts
+fix `instar.exit`
 
-match time data to hatch.time for some bugs bc otherwise things dont align nice:
-- R2 d2 pm expt bugs recover time (returned late)
-- R3 d2 expt bugs recover time (data entry typo?)
-- R3 d2 26C bugs enter time (entered late)
+fix `fate`? (based on their expected deaths at 40C trts and survival at other trts)
+  - 0 = died
+  - 1 = surved to 4th (if expt, which none did) or to 3rd (slow ctrls were culled at 3rd)
+  - 2 = culled (i.e. died before 1 or 2; usually disease, for the most part)
 
-```{r}
-data <- data %>%
+```{r fixes}
+df_filtered <- df_raw %>%
+  ## drop bugs accidentally culled before 3rd
+  filter(!(!is.na(date.culled) & instar.exit < 3)) %>%
+  
+  ## fix masses
+  pivot_longer(c(ends_with(c("3rd", "4th", "return")), -starts_with(c("h", "time"))),
+               names_to = c(".value", "event"), names_sep = "\\.") %>%
+  mutate(mass = case_when(date == date.died & when.died == "am" ~ NA_real_,
+                          TRUE ~ as.numeric(mass))) %>%
+  pivot_wider(names_from = event, values_from = c("date", "mass"),
+              names_glue = "{.value}.{event}") %>%
+  
+  ## align timepts
   mutate(time.return = case_when(date.hatch == "2025/7/7" & trt > 200 & 
                                    !is.na(date.return) ~ as.character(time.hatch),
                                  TRUE ~ as.character(time.return))) %>%
@@ -76,94 +97,95 @@ data <- data %>%
                                     !is.na(date.return) ~ as.character(time.hatch),
                                   TRUE ~ as.character(time.recover))) %>%
   mutate(time.enter = case_when(date.hatch == "2025/7/25" & trt == 26 ~ "12:00",
-                                TRUE ~ as.character(time.enter)))
-```
-
-## - fixing weights
-
-bugs were massed at molt/return to 40C, but ignore if they died the same morning (weight will not be accurate)
-
-```{r}
-data <- data %>%
-  pivot_longer(c(ends_with(c("3rd", "4th", "return")), -starts_with(c("h", "time"))),
-               names_to = c(".value", "event"), names_sep = "\\.") %>%
-  mutate(mass = case_when(date == date.died & when.died == "am" ~ NA_real_,
-                          TRUE ~ as.numeric(mass))) %>% 
-  pivot_wider(names_from = event, values_from = c("date", "mass"),
-              names_glue = "{.value}.{event}")
-```
-
-
-## - column formatting & date-time fixing
-
-```{r}
-# basic column type conversions/standardising
-data <- data %>%
-    mutate(across(c(trt, trt.enter, trt.recover, trt.duration, id, instar.exit, fate,
-                    starts_with("mass")), as.numeric))
-    #mutate(across(starts_with("date."), as.Date, format = "%m/%d")) # breaks cuz no %Y
-    #mutate(across(starts_with("time."), hm)) # breaks parsing bc converts to "HH MM SS"
-
-# recalculate the actual decimal hrs bc gsheets does it differently from R
-# (see dump script for testing)
-data <- data %>%
-  # date-time formatting
-  mutate(dh.hatch = as_datetime(paste(date.hatch, time.hatch), format = "%Y/%m/%d %H:%M"),
-         dh.enter = as_datetime(paste(date.enter, time.enter), format = "%Y/%m/%d %H:%M"),
-         dh.recover = as_datetime(paste(date.recover, time.recover), format = "%Y/%m/%d %H:%M"),
-         dh.return = as_datetime(paste(date.return, time.return), format = "%Y/%m/%d %H:%M"),
-         dh.exit = case_when(
-           !is.na(date.culled) ~ as_datetime(paste(date.culled, time.died), format = "%Y/%m/%d %H:%M"),
-           !is.na(date.died) ~ as_datetime(paste(date.died, time.died), format = "%Y/%m/%d %H:%M")),
-         ) %>% 
-  # conversion of date-times (sec) to decimal days
-  mutate(across(starts_with("dh."), ~ 
-                  as.numeric(.)/(60*60*24)))
-
-# TODO might need to keep "expt type" to separate out 40 ctrl from other "ctrls" ?
-```
-
-
-## - julian date conversions
-
-```{r}
-data <- data %>%
-  mutate(across(starts_with("date."), as.Date, "%Y/%m/%d")) %>%
-  mutate(across(starts_with("date."), as.Date, "%j", .names = "j{.col}")) %>%
-  mutate(across(starts_with("jdate."), as.numeric)) %>%
+                                TRUE ~ as.character(time.enter))) %>%
   
-  # consolidate died/culled cols into an "exit" col
-  mutate(jdate.exit = case_when(!is.na(jdate.culled) ~ jdate.culled,
-                                !is.na(jdate.died) ~ jdate.died)) %>%
-  select(-c(jdate.died, jdate.culled))
+  ## better parsing of culled vs exit
+  mutate(time.culled = case_when(date.culled == "2025/8/6" ~ "12:00",
+                                 date.culled == "2025/6/24" ~ "13:07",
+                                 !is.na(date.culled) ~ time.died),
+         time.died = case_when(!is.na(time.culled) ~ NA_character_,
+                               TRUE ~ time.died),
+         when.died = case_when(!is.na(date.culled) ~ NA_character_,
+                               TRUE ~ when.died)) %>%
+  
+  ## fix instar.exit (dont know if need, but the gsheets is wrong for older bugs lol)
+  mutate(instar.exit = case_when(!is.na(date.pupa) ~ "pupa",
+                                 !is.na(date.wander) ~ "wander",
+                                 !is.na(date.6th) ~ "6",
+                                 !is.na(date.5th) ~ "5",
+                                 !is.na(date.4th) ~ "4",
+                                 !is.na(date.3rd) ~ "3",
+                                 !is.na(date.2nd) ~ "2",
+                                 TRUE ~ "1")) %>%
+  
+  ## fix fates (based on bugs at 40 being expected to die)
+  mutate(fate = case_when(!is.na(date.culled) & grepl("disease", notes) ~ 2,
+                          !is.na(date.died) ~ 0,
+                          !is.na(date.4th) | (!is.na(date.3rd) & trt.type == "ctrl") ~ 1)
+         )
+
 ```
 
+## - stdise cols & times
 
-# 3. saving output & tidying up
+stdise col formats and calcs
+  - trt stuff: dd.hatch/enter/recover/return/died/culled
+  - fix gaps in recover/return/etc
+  
+add jdate (tho mostly we are interested in the `dd.` cols for analyses)
+
+```{r datetime calcs}
+df_cleaned <- df_filtered %>%
+  ## create date-time objs to calc decimal days
+  # arbitrarily assign "noon" if time is missing
+  mutate(time.culled = case_when(!is.na(date.culled) & is.na(time.culled) ~ "12:00",
+                                 TRUE ~ time.culled),
+         dd.hatch = paste(date.hatch, time.hatch),
+         dd.enter = paste(date.enter, time.enter),
+         dd.recover = paste(date.recover, time.recover),
+         dd.return = paste(date.return, time.return),
+         dd.culled = paste(date.culled, time.culled),
+         dd.died = paste(date.died, time.died)) %>%
+  na_if("NA NA") %>% 
+  mutate(dd.exit = case_when(!is.na(dd.died) ~ dd.died,
+                             !is.na(dd.culled) ~ dd.culled,
+                             TRUE ~ NA_character_)) %>% 
+  
+  ## add recovery/etc fixes for ctrls
+  # (their dd.recover/return = the same as dd.enter)
+  # TODO or do this later when wrangling?
+  mutate(dd.recover = case_when(trt.duration == 0 ~ dd.enter,
+                                TRUE ~ dd.recover),
+         dd.return = case_when(trt.duration == 0 ~ dd.enter,
+                               TRUE ~ dd.return)) %>%
+  
+
+  ## formatting
+  # convert date-times (sec) to decimal days
+  mutate(across(starts_with("date."), as.Date, "%Y/%m/%d"),
+         across(starts_with("date."), as.Date, "%j"),
+         across(starts_with("dd."), as_datetime, format = "%Y/%m/%d %H:%M"),
+         across(starts_with("dd."), ~ as.numeric(.)/(60*60*24))) %>%
+  rename_with(., ~paste0("j", .), starts_with("date.")) %>%
+  mutate(across(c(trt, trt.enter, trt.recover, trt.duration,
+                  id, instar.exit, fate, starts_with(c("mass", "jdate"))), as.numeric))
+```
+
+# export
 
 ```{r}
-# setup
 today <- format(Sys.time(), "%y%m%d-%H%M")
 
-#data <- mutate(data, across(starts_with("time."), as.character))
-  # breaks write_csv if left as a `lubridate` object
+# export filtered df as raw per corrections
+write.csv(df_filtered, file = paste0(here("_tdt/data/raw/"), "dev_", today, ".csv"), row.names = FALSE)
+
+# extract useful stuff
+export <- df_cleaned %>%
+  select(c("cohort", "shelf", "id", starts_with(c("trt", "jdate", "mass", "dd.")), "fate"))
+write.csv(export, file = paste0(here("_tdt/data/clean/dev.csv")))
 ```
 
 ```{r}
-# export
-write.csv(raw, file = paste0(here(bin_paths$y25$tdtdata), "/archive/", today, "_raw.csv"), row.names = FALSE)
-write.csv(data, file = paste0(here(bin_paths$y25$tdtdata), "/archive/", today, "_clean-full.csv"), row.names = FALSE)
-
-# extract the useful stuff
-data <- data %>%
-  select(c("cohort", "shelf", starts_with("trt"), "id", 
-           starts_with(c("jdate", "mass", "dh")), "instar.exit", "fate", 
-           "mass.return", "h.return"))
-
-write.csv(data, file = paste0(here(bin_paths$y25$tdtdata), "/clean-working.csv"), row.names = FALSE)
-```
-
-```{r}
-# remove troubleshooting objects
-rm(today, data, raw)
+# clean up
+rm(df_raw, df_filtered, df_cleaned, export, today)
 ```
