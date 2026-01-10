@@ -1,17 +1,96 @@
 ---
 title: "tidy tdt"
-date: "2026-01-06
+date: "2026-01-06"
 ---
 
-# 0. preamble
+# preamble
 
 get 2025 data into tidy format.
 
-rerun the purling as needed to update the tidying script
+final code is purled to a `.R` script, rerun `purl` step as needed to update the wrangling for analyses
 
-roadmap
-- purling stuff
-- import data, libs
-- make new columns, binaries, etc
-- cleanup
+- roadmap
+  - purling stuff
+  - import data, libs
+  - make new columns, binaries, etc
+  - cleanup
+  
+```{r for purling, eval=FALSE, include=FALSE, purl=FALSE}
+here::i_am("_tdt/scripts/tidy.Rmd") # set wd
 
+knitr::purl(here::here("_tdt/scripts/tidy.Rmd"), here::here("_tdt/scripts/R/tidy.R")) # purl current script
+  # save and apply updates to current .Rmd before purling!
+```
+
+# # load libs & pkgs
+
+```{r about}
+# tidy tdt.R
+
+# knitted tidying code for tdt data
+# source() this in corresponding analysis scripts.
+```
+
+```{r load libs}
+library(tidyverse)
+library(here)
+```
+
+```{r loading}
+df_import <- read.csv(here("_tdt/data/clean/dev.csv"), header = TRUE) %>%
+  filter(!is.na(fate)) # drop lost bugs cuz they f shit up?
+```
+
+# # futzing
+
+roadmap:
+
+more date corrections
+  - just standardise the cutoff for bugs that survived (fate = 1): (+1 the last day of the expt bugs, bc of round B cutoff, assuming that they lived past that)
+  - stdise all event times by enter date (so day 0 = when entered)
+  
+more calcs
+  - calc time to exit with t0 from enter, recover, return
+
+## recalc exit times
+
+```{r}
+dfs_tidy <- list(
+  wide = df_import %>%
+    # select(c("trt.enter", "cohort", "id", "fate", "trt.duration",
+    #          ends_with(c("hatch", "enter", "recover", "return", "exit", "died", "culled")))) %>%
+    
+    ## assign cutoff
+    merge(., 
+          df_import %>%
+            filter(trt.enter ==  40) %>%
+            group_by(cohort) %>%
+            summarise(max = max(dh.exit, na.rm = TRUE))) %>%
+    mutate(dh.max = case_when(fate == 1 ~ max + 1,
+                              TRUE ~ dh.exit)) %>%
+    
+    ## stdise times so t0 = enter
+    mutate(dt.enter = dh.enter - dh.enter,
+           dt.recover = dh.recover - dh.enter,
+           dt.return = dh.return - dh.enter,
+           dt.exit = dh.max - dh.enter) %>% 
+        
+    ## calc expt exit times from rec/return/exit
+    mutate(tt.exitfromenter = dt.exit - dt.enter,
+           tt.exitfromrecover = dt.exit - dt.recover,
+           tt.exitfromreturn = dt.exit - dt.return) %>%
+
+    ## recode km status with how package expects it
+    ## 1 = death, 0 = censored
+      ## TODO: wip -- doesnt match up w fates...
+    # mutate(status = case_when(dh.exit < max ~ 1,
+    #                           TRUE ~ 0)) %>%
+    select(-max)
+)
+```
+# # export
+
+## cleanup
+```{r cleanup}
+rm(df_import)
+```

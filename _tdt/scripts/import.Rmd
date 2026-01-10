@@ -61,11 +61,6 @@ filter bugs accidentally culled before 3rd (dont fix `instar.exit` before this)
 
 weights: 
   - drop masses of bugs at molts/return to 40C if they were already dead by the am (weight will not be accurate)
-
-standardise timepts (align everything to `hatch.time`):
-  - R2 d2 pm expt bugs recover time (returned late)
-  - R3 d2 expt bugs recover time (data entry typo?)
-  - R3 d2 26C bugs enter time (entered late)
   
 parse culled vs died better
 
@@ -88,16 +83,6 @@ df_filtered <- df_raw %>%
                           TRUE ~ as.numeric(mass))) %>%
   pivot_wider(names_from = event, values_from = c("date", "mass"),
               names_glue = "{.value}.{event}") %>%
-  
-  ## align timepts
-  mutate(time.return = case_when(date.hatch == "2025/7/7" & trt > 200 & 
-                                   !is.na(date.return) ~ as.character(time.hatch),
-                                 TRUE ~ as.character(time.return))) %>%
-  mutate(time.recover = case_when(date.hatch == "2025/7/24" & trt > 100 &
-                                    !is.na(date.return) ~ as.character(time.hatch),
-                                  TRUE ~ as.character(time.recover))) %>%
-  mutate(time.enter = case_when(date.hatch == "2025/7/25" & trt == 26 ~ "12:00",
-                                TRUE ~ as.character(time.enter))) %>%
   
   ## better parsing of culled vs exit
   mutate(time.culled = case_when(date.culled == "2025/8/6" ~ "12:00",
@@ -128,6 +113,11 @@ df_filtered <- df_raw %>%
 
 ## - stdise cols & times
 
+standardise timepts (align everything to `hatch.time` to avoid negatives in `exit.from...` calcs later):
+  - R2 d2 pm expt bugs recover time (returned late)
+  - R3 d2 expt bugs recover time (data entry typo?)
+  - R3 d2 26C bugs enter time (entered late)
+
 stdise col formats and calcs
   - trt stuff: dd.hatch/enter/recover/return/died/culled
   - fix gaps in recover/return/etc
@@ -136,37 +126,56 @@ add jdate (tho mostly we are interested in the `dd.` cols for analyses)
 
 ```{r datetime calcs}
 df_cleaned <- df_filtered %>%
+  ## align timepts
+    # R2 d2 pm expt bugs
+  mutate(time.return = case_when(date.hatch == "2025/7/7" & trt > 200 &
+                                   !is.na(date.return) ~ as.character(time.hatch),
+                                 TRUE ~ as.character(time.return))) %>%
+    # R3 d2 expt bugs
+  mutate(time.recover = case_when(date.hatch == "2025/7/24" & trt > 100 &
+                                    !is.na(date.return) ~ as.character(time.hatch),
+                                  TRUE ~ as.character(time.recover))) %>%
+    # R3 d2 26C
+  mutate(time.enter = case_when(date.hatch == "2025/7/25" & trt == 26 ~ "12:00",
+                                TRUE ~ as.character(time.enter))) %>%
+  # mutate(across(c("time.enter", "time.recover", "time.return"), ~ if_else(!is.na(.), time.hatch, NA_character_))) %>%
+  
+  
   ## create date-time objs to calc decimal days
   # arbitrarily assign "noon" if time is missing
   mutate(time.culled = case_when(!is.na(date.culled) & is.na(time.culled) ~ "12:00",
                                  TRUE ~ time.culled),
-         dd.hatch = paste(date.hatch, time.hatch),
-         dd.enter = paste(date.enter, time.enter),
-         dd.recover = paste(date.recover, time.recover),
-         dd.return = paste(date.return, time.return),
-         dd.culled = paste(date.culled, time.culled),
-         dd.died = paste(date.died, time.died)) %>%
+         dh.hatch = paste(date.hatch, time.hatch),
+         dh.enter = paste(date.enter, time.enter),
+         dh.recover = paste(date.recover, time.recover),
+         dh.return = paste(date.return, time.return),
+         dh.culled = paste(date.culled, time.culled),
+         dh.died = paste(date.died, time.died)) %>%
   na_if("NA NA") %>% 
-  mutate(dd.exit = case_when(!is.na(dd.died) ~ dd.died,
-                             !is.na(dd.culled) ~ dd.culled,
+  mutate(dh.exit = case_when(!is.na(dh.died) ~ dh.died,
+                             !is.na(dh.culled) ~ dh.culled,
                              TRUE ~ NA_character_)) %>% 
   
   ## add recovery/etc fixes for ctrls
   # (their dd.recover/return = the same as dd.enter)
   # TODO or do this later when wrangling?
-  mutate(dd.recover = case_when(trt.duration == 0 ~ dd.enter,
-                                TRUE ~ dd.recover),
-         dd.return = case_when(trt.duration == 0 ~ dd.enter,
-                               TRUE ~ dd.return)) %>%
+  mutate(dh.recover = case_when(trt.duration == 0 ~ dh.enter,
+                                TRUE ~ dh.recover),
+         dh.return = case_when(trt.duration == 0 ~ dh.enter,
+                               TRUE ~ dh.return)) %>%
   
 
   ## formatting
-  # convert date-times (sec) to decimal days
-  mutate(across(starts_with("date."), as.Date, "%Y/%m/%d"),
-         across(starts_with("date."), as.Date, "%j"),
-         across(starts_with("dd."), as_datetime, format = "%Y/%m/%d %H:%M"),
-         across(starts_with("dd."), ~ as.numeric(.)/(60*60*24))) %>%
-  rename_with(., ~paste0("j", .), starts_with("date.")) %>%
+  # convert date-times (sec) to decimal hours (dh)
+  mutate(across(starts_with("date."), ymd),
+         across(starts_with("date."), as.numeric), # days
+         across(starts_with("dh."), ymd_hm), 
+         #across(starts_with("dh."), as.numeric), # seconds
+         #across(starts_with("dh."), ~ as.numeric(.)/(60*60*24)) # hours
+         across(starts_with("dh."),
+                ~ (yday(.)*24 + hour(.) + minute(.)/60))
+         ) %>%
+  rename_with(., ~paste0("j", .), starts_with("date.")) %>% # days
   mutate(across(c(trt, trt.enter, trt.recover, trt.duration,
                   id, instar.exit, fate, starts_with(c("mass", "jdate"))), as.numeric))
 ```
@@ -180,9 +189,9 @@ today <- format(Sys.time(), "%y%m%d-%H%M")
 write.csv(df_filtered, file = paste0(here("_tdt/data/raw/"), "dev_", today, ".csv"), row.names = FALSE)
 
 # extract useful stuff
-export <- df_cleaned %>%
-  select(c("cohort", "shelf", "id", starts_with(c("trt", "jdate", "mass", "dd.")), "fate"))
-write.csv(export, file = paste0(here("_tdt/data/clean/dev.csv")))
+df_cleaned %>%
+  select(c("cohort", "shelf", "id", starts_with(c("trt", "jdate", "mass", "dh.")), "fate")) %>%
+  write.csv(., file = paste0(here("_tdt/data/clean/dev.csv")), row.names = FALSE)
 ```
 
 ```{r}
