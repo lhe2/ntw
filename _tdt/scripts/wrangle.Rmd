@@ -13,3 +13,94 @@ roadmap
 - calc ss for viz
 - susbets?
 
+```{r for purling, eval=FALSE, include=FALSE, purl=FALSE}
+here::i_am("_tdt/scripts/wrangle.Rmd") # set wd
+
+knitr::purl(here::here("_tdt/scripts/wrangle.Rmd"), here::here("_tdt/scripts/R/wrangle.R")) # purl current script
+  # save and apply updates to current .Rmd before purling!
+```
+
+```{r}
+library(here)
+library(tidyverse)
+
+source(here("_tdt/scripts/utils/wrangle.R"))
+```
+
+```{r}
+source(here("_tdt/scripts/R/tidy.R"))
+```
+
+# futzing
+
+## calc surv timepts
+stdise times in 24h intervals relative to entering (`st.enter`) and returning times (`st.ret`)
+- adjust times to the slowest groups
+- are bugs still alive at each time pt? (i.e. exit time > stdised timept?)
+
+```{r}
+.DetSurvStatus <- function(x){
+  
+  # NOTE: time stdising depends on how data is subsetted!!
+  # currently, this is for when the df has all 3 trt.dur groups.
+  
+  #dfs_tidy$wide %>% # troubleshooting df
+  x %>%
+    mutate(
+      # stdise timepts to the slowest trt group
+      ## by enter time (to expts)
+      st.enter0 = case_when(trt < 100 ~ dt.enter + 24,
+                            TRUE ~ dt.enter),
+      st.enter24 = st.enter0 + 24,
+      
+      ## by return time (to 48h rec)
+        ## TODO need to adjust times here if subsetting rec 24 only/48 only
+      st.ret0 = case_when(trt.duration == 0 ~ dt.enter + 48,
+                          trt.duration == 24 ~ dt.enter + 24,
+                          TRUE ~ dt.enter),
+      st.ret24 = st.ret0 + 24,
+      st.ret48 = st.ret24 + 24,
+      st.ret72 = st.ret48 + 24,
+      st.ret96 = st.ret72 + 24
+    ) %>% 
+    
+    ## code survival status at each timept
+    mutate(
+      across(starts_with("st."), ~ case_when(dt.exit > . ~ 1, 
+                                             TRUE ~ NA_real_),
+             .names = "{sub('st', 'status', col)}"),
+      ## correct status.ret0 if died at enter24
+      status.ret0 = case_when(!is.na(status.ret0) & is.na(status.enter24) ~ NA_real_,
+                              TRUE ~ status.ret0)
+    ) %>%
+    select(-starts_with(c("st.", "dh.")))
+}
+```
+
+## calc surv props
+```{r}
+dfs_tidy$wide %>%
+  .DetSurvStatus() %>% 
+  ## custom group_by fn?
+  group_by(cohort
+           ) %>%
+  
+  summarise(
+    across(starts_with("status"), ~ sum(., na.rm = TRUE), 
+           .names = "{sub('status', 'n.initial', col)}"),
+    n.surv.enter0 = n.initial.enter24,
+    n.surv.enter24 = n.initial.ret0,
+    n.surv.ret0 = n.initial.ret24,
+    n.surv.ret24 = n.initial.ret48,
+    n.surv.ret48 = n.initial.ret72,
+    n.surv.ret72 = n.initial.ret96
+    ) %>% 
+  pivot_longer(starts_with(c("n.initial", "n.surv")),
+               names_to = c(".value", "timept"),
+               names_pattern = "(n\\.[a-z]*)\\.([a-z]*\\d*)") %>%
+  mutate(n.died = n.initial - n.surv,
+         p.surv = n.surv/n.initial,
+         p.died = n.died/n.initial) %>%
+  filter(timept != "ret96")
+
+```
