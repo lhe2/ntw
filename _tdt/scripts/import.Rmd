@@ -29,7 +29,7 @@ date: "2026-01-07"
 
 ```{r loading message = FALSE}
 library(tidyverse)
-library(lubridate) # for as_datetime
+library(lubridate) # for datetime parsing
 library(googlesheets4)
 
 here::i_am("_tdt/scripts/import.Rmd")
@@ -61,8 +61,10 @@ filter bugs accidentally culled before 3rd (dont fix `instar.exit` before this)
 
 weights: 
   - drop masses of bugs at molts/return to 40C if they were already dead by the am (weight will not be accurate)
-  
-parse culled vs died better
+
+dates:
+- parse culled vs died better (things with `.culled` should be empty in `.died` and vice versa)
+- add return/recovery dates/times to 0hr recovery bugs
 
 fix `instar.exit`
 
@@ -73,16 +75,24 @@ fix `fate`? (based on their expected deaths at 40C trts and survival at other tr
 
 ```{r fixes}
 df_filtered <- df_raw %>%
+  # filtering
   ## drop bugs accidentally culled before 3rd
   filter(!(!is.na(date.culled) & instar.exit < 3)) %>%
   
-  ## fix masses
+  # fixes
+  ## fix masses of bugs if they died in the pm
   pivot_longer(c(ends_with(c("3rd", "4th", "return")), -starts_with(c("h", "time"))),
                names_to = c(".value", "event"), names_sep = "\\.") %>%
   mutate(mass = case_when(date == date.died & when.died == "am" ~ NA_real_,
                           TRUE ~ as.numeric(mass))) %>%
   pivot_wider(names_from = event, values_from = c("date", "mass"),
               names_glue = "{.value}.{event}") %>%
+  
+  ## add missing dates & times for 0h recovery bugs
+  mutate(across(c("date.recover", "date.return"), 
+                ~ case_when(trt.duration == 0 ~ date.enter, TRUE ~ .)),
+         across(c("time.recover", "time.return"), 
+                ~ case_when(trt.duration == 0 ~ time.enter, TRUE ~ .))) %>%
   
   ## better parsing of culled vs exit
   mutate(time.culled = case_when(date.culled == "2025/8/6" ~ "12:00",
@@ -126,24 +136,27 @@ add jdate (tho mostly we are interested in the `dd.` cols for analyses)
 
 ```{r datetime calcs}
 df_cleaned <- df_filtered %>%
-  ## align timepts
-    # R2 d2 pm expt bugs
-  mutate(time.return = case_when(date.hatch == "2025/7/7" & trt > 200 &
-                                   !is.na(date.return) ~ as.character(time.hatch),
-                                 TRUE ~ as.character(time.return))) %>%
-    # R3 d2 expt bugs
-  mutate(time.recover = case_when(date.hatch == "2025/7/24" & trt > 100 &
-                                    !is.na(date.return) ~ as.character(time.hatch),
-                                  TRUE ~ as.character(time.recover))) %>%
-    # R3 d2 26C
-  mutate(time.enter = case_when(date.hatch == "2025/7/25" & trt == 26 ~ "12:00",
-                                TRUE ~ as.character(time.enter))) %>%
+  mutate(
+    # align timepts
+    ## R2 d2 pm expt bugs
+    time.return = case_when(date.hatch == "2025/7/7" & trt > 200 &
+                              !is.na(date.return) ~ time.hatch,
+                            TRUE ~ time.return),
+    ## R3 d2 expt bugs
+    time.recover = case_when(date.hatch == "2025/7/24" & trt > 100 &
+                               !is.na(date.return) ~ as.character(time.hatch),
+                             TRUE ~ time.recover)) %>%
+    ## R3 d2 26C
+  mutate(across(c("time.enter", "time.recover", "time.return"), 
+                ~ case_when(date.hatch == "2025/7/25" & trt == 26 ~ "12:00",
+                            TRUE ~ .))) %>% 
+  
   # mutate(across(c("time.enter", "time.recover", "time.return"), ~ if_else(!is.na(.), time.hatch, NA_character_))) %>%
+    ## doesnt rly work bc not everything aligns to hatch time...
   
-  
-  ## create date-time objs to calc decimal days
-  # arbitrarily assign "noon" if time is missing
-  mutate(time.culled = case_when(!is.na(date.culled) & is.na(time.culled) ~ "12:00",
+  # create date-time objs to calc decimal days
+  ## arbitrarily assign to late in day (23:59) if time is missing for culled bugs to avoid breaking later
+  mutate(time.culled = case_when(!is.na(date.culled) & is.na(time.culled) ~ "23:59",
                                  TRUE ~ time.culled),
          dh.hatch = paste(date.hatch, time.hatch),
          dh.enter = paste(date.enter, time.enter),
@@ -154,16 +167,7 @@ df_cleaned <- df_filtered %>%
   na_if("NA NA") %>% 
   mutate(dh.exit = case_when(!is.na(dh.died) ~ dh.died,
                              !is.na(dh.culled) ~ dh.culled,
-                             TRUE ~ NA_character_)) %>% 
-  
-  ## add recovery/etc fixes for ctrls
-  # (their dd.recover/return = the same as dd.enter)
-  # TODO or do this later when wrangling?
-  mutate(dh.recover = case_when(trt.duration == 0 ~ dh.enter,
-                                TRUE ~ dh.recover),
-         dh.return = case_when(trt.duration == 0 ~ dh.enter,
-                               TRUE ~ dh.return)) %>%
-  
+                             TRUE ~ NA_character_)) %>%
 
   ## formatting
   # convert date-times (sec) to decimal hours (dh)
