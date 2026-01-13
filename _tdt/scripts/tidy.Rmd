@@ -38,7 +38,8 @@ library(here)
 
 ```{r loading}
 df_import <- read.csv(here("_tdt/data/clean/dev.csv"), header = TRUE) %>%
-  filter(!is.na(fate)) # drop lost bugs cuz they f shit up?
+  filter(!is.na(fate) | 
+           (is.na(dh.culled) & is.na(dh.exit)))
 ```
 
 # # futzing
@@ -60,7 +61,7 @@ dfs_tidy <- list(
     # select(c("trt.enter", "cohort", "id", "fate", "trt.duration",
     #          ends_with(c("hatch", "enter", "recover", "return", "exit", "died", "culled")))) %>%
     
-    ## assign cutoff
+    ## assign cutoff 
     merge(., 
           df_import %>%
             filter(trt.enter ==  40) %>%
@@ -74,20 +75,36 @@ dfs_tidy <- list(
            dt.recover = dh.recover - dh.enter,
            dt.return = dh.return - dh.enter,
            dt.exit = dh.max - dh.enter) %>% 
-        
-    ## calc expt exit times from rec/return/exit
-    mutate(tt.exitfromenter = dt.exit - dt.enter,
-           tt.exitfromrecover = dt.exit - dt.recover,
-           tt.exitfromreturn = dt.exit - dt.return) %>%
 
     ## recode km status with how package expects it
-    ## 1 = death, 0 = censored
-      ## TODO: wip -- doesnt match up w fates...
-    # mutate(status = case_when(dh.exit < max ~ 1,
-    #                           TRUE ~ 0)) %>%
+    ## 1 = death, 0 = alive/censored (culled after endpt), 
+    ## 2 = death for other reasons (pmcs)
+    mutate(status = case_when(dh.exit >= max ~ 0, # culled
+                              !is.na(dh.culled) & dh.exit < max ~ 2,
+                              !is.na(dh.died) ~ 1)
+           ) %>%
     select(-max)
 )
 ```
+
+```{r}
+    ## calc expt exit times from rec/return/exit (for surv stats/viz) -- see xlxs
+
+dfs_tidy <- list_modify(
+  dfs_tidy,
+  long =
+    dfs_tidy$wide %>%
+    mutate(tt.exit.fromenter = dt.exit - dt.enter,
+           tt.exit.fromrecover = dt.exit - dt.recover,
+           tt.exit.fromreturn = dt.exit - dt.return) %>%
+    pivot_longer(starts_with("tt.exit"),
+                 names_to = c(".value", "subset"),
+                 names_pattern = "(tt\\.exit)\\.([a-z]*)"
+                 ) %>% 
+    drop_na(tt.exit)
+)
+```
+
 # # export
 
 ## cleanup
