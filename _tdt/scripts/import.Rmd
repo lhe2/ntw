@@ -62,8 +62,9 @@ filter bugs accidentally culled before 3rd (dont fix `instar.exit` before this)
 weights: 
   - drop masses of bugs at molts/return to 40C if they were already dead by the am (weight will not be accurate)
 
-dates:
-- parse culled vs died better (things with `.culled` should be empty in `.died` and vice versa)
+dates/times:
+- parse culled better: either culled before expected death (pmc) or after the expt bugs were done (culled)
+- parse culled vs died better: (things with `.culled` should be empty in `.died` and vice versa)
 - add return/recovery dates/times to 0hr recovery bugs
 
 fix `instar.exit`
@@ -93,21 +94,25 @@ df_filtered <- df_raw %>%
                 ~ case_when(trt.duration == 0 ~ date.enter, TRUE ~ .)),
          across(c("time.recover", "time.return"), 
                 ~ case_when(trt.duration == 0 ~ time.enter, TRUE ~ .))) %>%
+  
   ## better parsing of culled vs exit
-  ## pmc = culled before expected endpt; culled = culled after reaching endpt
+    ## pmc = culled before expected endpt; culled = culled after reaching endpt
   mutate(date.pmc = case_when(!is.na(date.culled) & 
                                 !grepl("(culled R\\d)|(given)", notes) ~ date.culled),
          date.culled = case_when(!is.na(date.pmc) ~ NA_character_,
+                                 !is.na(date.pupa) & is.na(date.culled) ~ date.pupa,
                                  TRUE ~ date.culled),
+         ## reassign missing culled times from died times (or arbitrarily assign late in day)
          time.culled = case_when(date.culled == "2025/8/6" ~ "12:00",
                                  date.culled == "2025/6/24" ~ "13:07",
-                                 !is.na(date.culled) | !is.na(date.pmc) ~ time.died),
-         time.died = case_when(!is.na(time.culled) | !is.na(date.pmc) ~ NA_character_,
-                               !is.na(date.died) & is.na(time.died) ~ time.enter, # id:194
+                                 (!is.na(date.culled) | !is.na(date.pmc)) & !is.na(time.died) ~ time.died,
+                                 (!is.na(date.culled) | !is.na(date.pmc)) & is.na(time.died) ~ "23:59"),
+         ## "culled" bugs should be NA in "died" cols
+         time.died = case_when(!is.na(time.culled) ~ NA_character_,
+                               !is.na(date.died) & is.na(time.died) ~ time.enter, # id:194 was missing
                                TRUE ~ time.died),
          when.died = case_when(!is.na(date.culled) ~ NA_character_,
-                               TRUE ~ when.died)
-         ) %>%
+                               TRUE ~ when.died)) %>%
   
   ## fix instar.exit (dont know if need, but the gsheets is wrong for older bugs lol)
   mutate(instar.exit = case_when(!is.na(date.pupa) ~ "pupa",
@@ -117,13 +122,14 @@ df_filtered <- df_raw %>%
                                  !is.na(date.4th) ~ "4",
                                  !is.na(date.3rd) ~ "3",
                                  !is.na(date.2nd) ~ "2",
-                                 TRUE ~ "1")) %>%
+                                 TRUE ~ "1")) %>% 
   
-  ## fix fates (based on bugs at 40 being expected to die)
-  ## note: no expt bugs past 4th but not all ctrl bugs past 4th 
-  mutate(fate = case_when(!is.na(date.pmc) ~ 2,
-                          !is.na(date.died) ~ 0,
-                          !is.na(date.culled) | !is.na(date.4th) ~ 1)
+  ## fix fates (based on bugs in 40C trts being expected to die)
+  ## note: no expt bugs past 4th but not all ctrl bugs to 4th
+  mutate(fate = case_when(!is.na(date.pmc) ~ "2",
+                          !is.na(date.culled) | 
+                            (trt.duration == 0 & !is.na(date.4th)) ~ "1", # catch straggler ctrls
+                          !is.na(date.died) ~ "0")
          )
 
 ```
@@ -157,15 +163,14 @@ df_cleaned <- df_filtered %>%
     ## R3 d2 26C
   mutate(across(c("time.enter", "time.recover", "time.return"), 
                 ~ case_when(date.hatch == "2025/7/25" & trt == 26 ~ "12:00",
+                            TRUE ~ .))) %>%
+    ## align other times to time.enter for cleaner KMs
+  mutate(across(c("time.recover", "time.return"),
+                ~ case_when(!is.na(.) & . != time.enter ~ time.enter,
                             TRUE ~ .))) %>% 
   
-  # mutate(across(c("time.enter", "time.recover", "time.return"), ~ if_else(!is.na(.), time.hatch, NA_character_))) %>%
-    ## doesnt rly work bc not everything aligns to hatch time...
-  
   # create date-time objs to calc decimal days
-  ## arbitrarily assign to late in day (23:59) if time is missing for culled bugs to avoid breaking later
-  mutate(time.culled = case_when(!is.na(date.culled) & is.na(time.culled) ~ "23:59",
-                                 TRUE ~ time.culled),
+  mutate(
          dh.hatch = paste(date.hatch, time.hatch),
          dh.enter = paste(date.enter, time.enter),
          dh.recover = paste(date.recover, time.recover),
@@ -176,8 +181,7 @@ df_cleaned <- df_filtered %>%
   na_if("NA NA") %>% 
   
   ## determine exit times
-  ### for wanders/pupated bugs, exit date is upon reaching fifth + late in day pup (23:59)
-  mutate(dh.exit = case_when(!is.na(date.5th) ~ paste(date.5th, "23:59"),
+  mutate(dh.exit = case_when(
                              !is.na(dh.died) ~ dh.died,
                              !is.na(dh.culled) ~ dh.culled,
                              TRUE ~ NA_character_)) %>%
@@ -193,8 +197,8 @@ df_cleaned <- df_filtered %>%
                 ~ (yday(.)*24 + hour(.) + minute(.)/60))
          ) %>%
   rename_with(., ~paste0("j", .), starts_with("date.")) %>% # days
-  mutate(across(c(trt, trt.enter, trt.recover, trt.duration,
-                  id, instar.exit, fate, starts_with(c("mass", "jdate"))), as.numeric))
+  mutate(across(c(trt, trt.enter, trt.recover, trt.duration, fate,
+                  id, instar.exit, starts_with(c("mass", "jdate"))), as.numeric))
 ```
 
 # export

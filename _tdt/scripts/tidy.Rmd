@@ -37,9 +37,9 @@ library(here)
 ```
 
 ```{r loading}
+# drop bugs with unknown fates
 df_import <- read.csv(here("_tdt/data/clean/dev.csv"), header = TRUE) %>%
-  filter(!is.na(fate) | 
-           (is.na(dh.culled) & is.na(dh.exit)))
+  filter(!is.na(fate))
 ```
 
 # # futzing
@@ -68,7 +68,7 @@ dfs_tidy <- list(
             group_by(cohort) %>%
             summarise(max = max(dh.exit, na.rm = TRUE))) %>%
     mutate(dh.max = case_when(fate == 1 ~ max + 1,
-                              TRUE ~ dh.exit)) %>%
+                              TRUE ~ dh.exit)) %>% 
     
     ## stdise times so t0 = enter
     mutate(dt.enter = dh.enter - dh.enter,
@@ -79,17 +79,20 @@ dfs_tidy <- list(
     ## recode km status with how package expects it
     ## 1 = death, 0 = alive/censored (culled after endpt), 
     ## 2 = death for other reasons (pmcs)
-    mutate(status = case_when(dh.exit >= max ~ 0, # culled
-                              !is.na(dh.culled) & dh.exit < max ~ 2,
-                              !is.na(dh.died) ~ 1)
+    mutate(status = case_when(fate == 2 ~ 2,
+                              fate == 1 ~ 0,
+                              fate == 0 ~ 1)
            ) %>%
     select(-max)
 )
+
+# dfs_tidy$wide %>%
+#   filter(!is.na(dh.died) & status == 0,) %>%
+#   View()
 ```
 
 ```{r}
-    ## calc expt exit times from rec/return/exit (for surv stats/viz) -- see xlxs
-
+## calc expt exit times from rec/return/exit (for surv stats/viz) -- see xlxs
 dfs_tidy <- list_modify(
   dfs_tidy,
   long =
