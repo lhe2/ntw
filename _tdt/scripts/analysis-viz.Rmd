@@ -120,3 +120,27 @@ ggsurvplot(fit = km_fit, data = km_df,
   AddKMLines(km_df, dt.recover
              )
 ```
+# surv props
+
+```{r}
+dfs_tidy$wide %>%
+  CalcSurvProps(., trt.recover, trt.duration) %>%
+  filter(status %in% c("surv", "died")) %>%
+  ggplot(aes(y = p, x = timept,
+             fill = status)) +
+  geom_col() +
+  facet_grid(trt.duration ~ trt.recover, drop = TRUE) +
+  scale_x_discrete(guide = guide_axis(angle = 45))
+  
+
+dfs_tidy$wide %>%
+  CalcSurvProps(., trt.recover, trt.duration) %>%
+  filter(status %in% c("initial")) %>% 
+  ggplot(aes(y = n, x = timept,
+             group = interaction(trt.recover, trt.duration),
+             #fill = status
+             )) +
+  geom_point() + geom_line() +
+  facet_grid(trt.duration ~ trt.recover, drop = TRUE) +
+  scale_x_discrete(guide = guide_axis(angle = 45))
+```
