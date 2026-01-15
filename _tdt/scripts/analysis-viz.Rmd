@@ -13,3 +13,110 @@ TODO
 - analysis
   - all the kms
 
+# preamble
+
+```{r}
+# pathfinding
+here::i_am("_tdt/scripts/analysis-viz.Rmd")
+library(here)
+
+# libs and utils
+library(tidyverse)
+library(survival) # for Surv 
+library(survminer) # for ggsurvplot
+
+source(here("_tdt/scripts/utils/wrangle.R"))
+```
+
+```{r data prep}
+# import data
+source(here("_tdt/scripts/R/tidy.R"))
+
+# format col types for easier plotting...?
+
+# drop pmc bugs
+dfs_tidy <- dfs_tidy %>% lapply(., \(x){
+  x %>% 
+    filter(status %in% c(0, 1)) %>%
+    mutate(across(starts_with("trt"), as.factor))
+})
+```
+
+
+# kms
+
+## control trts
+results
+- no major diffs in KMs for 40 ctrls across cohorts
+
+```{r}
+# by trt
+km_df <- dfs_tidy$long %>%
+  filter(subset == "fromenter" & trt.duration == 0)
+km_fit <- survfit(Surv(km_df$tt.exit, km_df$status) ~ trt.recover, data = km_df)
+
+ggsurvplot(fit = km_fit, data = km_df,
+           facet.by = "cohort"
+           ) %++%
+  AddKMLines(km_df) + 
+  scale_color_manual(values = c("#002F70", "#3C6FC4", "#DE738B", "#8E063B"))
+```
+
+```{r}
+# by cohort
+km_df <- dfs_tidy$long %>%
+  filter(subset == "fromenter" & trt.duration == 0,
+         trt.recover == 40)
+km_fit <- survfit(Surv(km_df$tt.exit, km_df$status) ~ cohort, data = km_df)
+
+ggsurvplot(fit = km_fit, data = km_df,
+           #facet.by = "trt.recover"
+           ) %++%
+  AddKMLines(km_df)
+
+# looking at the 40C grp only -- no major diffs
+```
+
+
+## exptal trts
+```{r}
+# effect of recovery temp
+km_df <- dfs_tidy$long %>%
+  filter(subset == "fromenter" & trt.enter == 40) # ohh this is where im hitting issues w the subsetting...
+km_fit <- survfit(Surv(km_df$tt.exit, km_df$status) ~ trt.recover, data = km_df)
+
+ggsurvplot(fit = km_fit, data = km_df,
+           #facet.by = "cohort"
+           facet.by = "trt.duration"
+           ) %++%
+  AddKMLines(km_df, dt.recover #idk how to get the vlines only on the relevant panels
+             )
+```
+
+```{r}
+# effect of trt.duration
+km_df <- dfs_tidy$long %>%
+  filter(subset == "fromenter" & trt.enter == 40)
+km_fit <- survfit(Surv(km_df$tt.exit, km_df$status) ~ trt.duration, data = km_df)
+
+ggsurvplot(fit = km_fit, data = km_df,
+           facet.by = "cohort"
+           #facet.by = "trt.recover"
+           ) %++%
+  AddKMLines(km_df, dt.recover
+             )
+```
+
+```{r}
+# effect of cohort
+km_df <- dfs_tidy$long %>%
+  filter(subset == "fromenter" & trt.enter == 40)
+km_fit <- survfit(Surv(km_df$tt.exit, km_df$status) ~ cohort, data = km_df)
+
+ggsurvplot(fit = km_fit, data = km_df,
+           #facet.by = "trt.recover",
+           facet.by = "trt.duration"
+           ) %++%
+  AddKMLines(km_df, dt.recover
+             )
+```
