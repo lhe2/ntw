@@ -26,7 +26,7 @@ CalcSurvProps <- function(df, ...){
   
   # assign survival status at 24h intervals
   df <- df %>%
-    #dfs_tidy$wide %>% # for troubleshooting
+    #df <- dfs_tidy$wide %>% # for troubleshooting
     mutate(
       ## from enter time
       st.enter0 = dt.enter,
@@ -51,7 +51,8 @@ CalcSurvProps <- function(df, ...){
     #group_by(!!!grp) %>% # works with rlang::enquo but doesnt show names
     #.GroupTDT(...) %>% # meh
     group_by(...) %>%
-    #group_by(cohort) %>% # for troubleshooting
+    # group_by(cohort,
+    #          trt.duration, trt.recover) %>% # for troubleshooting
 
     # calc survival props
     summarise(
@@ -74,7 +75,24 @@ CalcSurvProps <- function(df, ...){
       n.surv.ret24 = n.initial.ret48,
       n.surv.ret48 = n.initial.ret72,
       n.surv.ret72 = n.initial.ret96
-      ) %>% #View()
+      ) #%>% 
+    
+  ## fix calcs in 40C @ 0h, if cols exist
+    if(rlang::has_name(df, "trt.duration") & rlang::has_name(df, "trt.recover")){
+      df <- df %>%
+        mutate(n.initial.rec = case_when(trt.duration == 0 & trt.recover == 40 ~ n.initial.enter0,
+                                         TRUE ~ n.initial.rec),
+               n.surv.rec = case_when(trt.duration == 0 & trt.recover == 40 ~ n.initial.enter24,
+                                      TRUE ~ n.surv.rec))
+    } else if(rlang::has_name(df, "trt")){
+      df <- df %>%
+        mutate(n.initial.rec = case_when(trt == 40 ~ n.initial.enter0,
+                                         TRUE ~ n.initial.rec),
+               n.surv.rec = case_when(trt == 40 ~ n.initial.enter24,
+                                      TRUE ~ n.surv.rec))
+    } else return(df)
+    
+  df %>%
     pivot_longer(starts_with(c("n.initial", "n.surv")),
                  names_to = c(".value", "timept"),
                  names_pattern = "(n\\.[a-z]*)\\.([a-z]*\\d*)") %>% #View()
@@ -95,12 +113,13 @@ CalcSurvProps <- function(df, ...){
   
   ## omit "enter" and "rec" timepts for ctrls bc otherwise its a pita to get the math right lol
   ## (you get negatives at 40C @ 0h bc of how initial vs surv counts are done)
-  if(rlang::has_name(df, "trt.duration")){
-    filter(df, !(trt.duration == 0 & timept %in% c("enter", "rec"))) %>%
-      return()
-  } else if(rlang::has_name(df, "trt")){
-    filter(df, !(trt < 100 & timept %in% c("enter", "rec"))) %>%
-      return()
-  } else return(df)
+  # if(rlang::has_name(df, "trt.duration")){
+  #   #filter(df, !(trt.duration == 0 & timept %in% c("enter", "rec"))) %>%
+  #   mutate(n = case_when(timept %in% c("enter", "rec") ~ ))
+  #     return()
+  # } else if(rlang::has_name(df, "trt")){
+  #   filter(df, !(trt < 100 & timept %in% c("enter", "rec"))) %>%
+  #     return()
+  # } else return(df)
   
 }
