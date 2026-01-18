@@ -33,6 +33,7 @@ knitr::purl(here::here("_tdt/scripts/tidy.Rmd"), here::here("_tdt/scripts/R/tidy
 
 ```{r load libs}
 library(tidyverse)
+library(data.table) #rbindlist
 library(here)
 ```
 
@@ -42,10 +43,15 @@ df_import <- read.csv(here("_tdt/data/clean/dev.csv"), header = TRUE) %>%
   filter(!is.na(fate))
 ```
 
+
 # # futzing
 
 roadmap:
 
+1) create simulated 40 ctrls for 24h and 48h recovery (bc lacking them)
+  - also adjust jdates accordingly
+
+2) corrections and other calcs
 more date corrections
   - just standardise the cutoff for bugs that survived (fate = 1): (+1 the last day of the expt bugs, bc of round B cutoff, assuming that they lived past that)
   - stdise all event times by enter date (so day 0 = when entered)
@@ -53,11 +59,35 @@ more date corrections
 more calcs
   - calc time to exit with t0 from enter, recover, return
 
+## simulate 40 ctrls
+
+```{r}
+df_all <- list(
+    df_import,
+    df_import %>% 
+      filter(trt == 40) %>% 
+      mutate(trt.duration = 24,
+             dh.recover = case_when(dh.exit > dh.enter + 24 ~ dh.enter + 24),
+             dh.return = case_when(dh.exit > dh.recover + 24 ~ dh.recover + 24),
+             jdate.recover = case_when(!is.na(dh.recover) ~ jdate.enter + 1),
+             jdate.return = case_when(!is.na(dh.return) ~ jdate.enter + 2)),
+    df_import %>%
+      filter(trt == 40) %>% 
+      mutate(trt.duration = 48,
+             dh.recover = case_when(dh.exit > dh.enter + 24 ~ dh.enter + 24),
+             dh.return = case_when(dh.exit > dh.recover + 48 ~ dh.recover + 48),
+             jdate.recover = case_when(!is.na(dh.recover) ~ jdate.enter + 1),
+             jdate.return = case_when(!is.na(dh.return) ~ jdate.enter + 3))
+  ) %>%
+  rbindlist()
+  
+```
+
 ## recalc exit times
 
 ```{r}
 dfs_tidy <- list(
-  wide = df_import %>%
+  wide = df_all %>%
     # select(c("trt.enter", "cohort", "id", "fate", "trt.duration",
     #          ends_with(c("hatch", "enter", "recover", "return", "exit", "died", "culled")))) %>%
     
@@ -112,5 +142,5 @@ dfs_tidy <- list_modify(
 
 ## cleanup
 ```{r cleanup}
-rm(df_import)
+rm(df_import, df_all)
 ```
