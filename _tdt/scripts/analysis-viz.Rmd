@@ -26,6 +26,7 @@ library(survival) # for Surv
 library(survminer) # for ggsurvplot
 
 source(here("_tdt/scripts/utils/wrangle.R"))
+source(here("_tdt/scripts/utils/analysis-viz.R"))
 ```
 
 ```{r data prep}
