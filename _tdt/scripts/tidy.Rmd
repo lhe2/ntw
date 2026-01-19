@@ -39,8 +39,17 @@ library(here)
 
 ```{r loading}
 # drop bugs with unknown fates
-df_import <- read.csv(here("_tdt/data/clean/dev.csv"), header = TRUE) %>%
-  filter(!is.na(fate))
+# separate cohort A expt bugs from the rest bc they had 48h initial exposure
+dfs_import <- list(
+  all = read.csv(here("_tdt/data/clean/dev.csv"), header = TRUE),
+  cohortA = read.csv(here("_tdt/data/clean/dev.csv"), header = TRUE) %>% filter(cohort == "A"),
+  noA = read.csv(here("_tdt/data/clean/dev.csv"), header = TRUE) %>% filter(!(cohort == "A" & trt.duration > 0))
+  ) %>%
+  lapply(., \(x){
+    filter(x, !is.na(fate))
+  })
+
+# NTS: only using "noA" going forward, but add in the others if needed
 ```
 
 
@@ -62,16 +71,16 @@ more calcs
 ## simulate 40 ctrls
 
 ```{r}
-df_all <- list(
-    df_import,
-    df_import %>% 
+df_sim <- list(
+    dfs_import$noA,
+    dfs_import$noA %>% 
       filter(trt == 40) %>% 
       mutate(trt.duration = 24,
              dh.recover = case_when(dh.exit > dh.enter + 24 ~ dh.enter + 24),
              dh.return = case_when(dh.exit > dh.recover + 24 ~ dh.recover + 24),
              jdate.recover = case_when(!is.na(dh.recover) ~ jdate.enter + 1),
              jdate.return = case_when(!is.na(dh.return) ~ jdate.enter + 2)),
-    df_import %>%
+    dfs_import$noA %>%
       filter(trt == 40) %>% 
       mutate(trt.duration = 48,
              dh.recover = case_when(dh.exit > dh.enter + 24 ~ dh.enter + 24),
@@ -87,34 +96,37 @@ df_all <- list(
 
 ```{r}
 dfs_tidy <- list(
-  wide = df_all %>%
-    # select(c("trt.enter", "cohort", "id", "fate", "trt.duration",
-    #          ends_with(c("hatch", "enter", "recover", "return", "exit", "died", "culled")))) %>%
-    
-    ## assign cutoff 
-    merge(., 
-          df_import %>%
-            filter(trt.enter ==  40) %>%
-            group_by(cohort) %>%
-            summarise(max = max(dh.exit, na.rm = TRUE))) %>%
-    mutate(dh.max = case_when(fate == "culled" ~ max + 1,
-                              TRUE ~ dh.exit)) %>% 
-    
-    ## stdise times so t0 = enter
-    mutate(dt.enter = dh.enter - dh.enter,
-           dt.recover = dh.recover - dh.enter,
-           dt.return = dh.return - dh.enter,
-           dt.exit = dh.max - dh.enter) %>% 
-
-    ## recode km status with how package expects it
-    ## 1 = death, 0 = alive/censored (culled after endpt), 
-    ## 2 = death for other reasons (pmcs)
-    mutate(status = case_when(fate == "pmc" ~ 2,
-                              fate %in% c("died", "pmd") ~ 1,
-                              fate == "culled" ~ 0)
-           ) %>%
-    select(-max)
-)
+  wide = dfs_import$noA,
+  widesim = df_sim
+) %>%
+  lapply(., \(x){
+    x %>%
+      # select(c("trt.enter", "cohort", "id", "fate", "trt.duration",
+      #          ends_with(c("hatch", "enter", "recover", "return", "exit", "died", "culled")))) %>%
+      
+      ## assign cutoff 
+      merge(dfs_import$noA %>%
+              filter(trt.enter ==  40) %>%
+              group_by(cohort) %>%
+              summarise(max = max(dh.exit, na.rm = TRUE))) %>%
+      mutate(dh.max = case_when(fate == "culled" ~ max + 1,
+                                TRUE ~ dh.exit)) %>% 
+      
+      ## stdise times so t0 = enter
+      mutate(dt.enter = dh.enter - dh.enter,
+             dt.recover = dh.recover - dh.enter,
+             dt.return = dh.return - dh.enter,
+             dt.exit = dh.max - dh.enter) %>% 
+      
+      ## recode km status with how package expects it
+      ## 1 = death, 0 = alive/censored (culled after endpt), 
+      ## 2 = death for other reasons (pmcs)
+      mutate(status = case_when(fate == "pmc" ~ 2,
+                                fate %in% c("died", "pmd") ~ 1,
+                                fate == "culled" ~ 0)
+      ) %>%
+      select(-max)
+  })
 
 # dfs_tidy$wide %>%
 #   filter(!is.na(dh.died) & status == 0,) %>%
@@ -142,5 +154,5 @@ dfs_tidy <- list_modify(
 
 ## cleanup
 ```{r cleanup}
-rm(df_import, df_all)
+rm(dfs_import, df_sim)
 ```
