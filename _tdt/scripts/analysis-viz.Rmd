@@ -44,9 +44,9 @@ dfs_tidy <- dfs_tidy %>% lapply(., \(x){
 ```
 
 
-# kms
+# kms ctrls
 
-## control trts
+## by rec temp
 results
 - no major diffs in KMs for 40 ctrls across cohorts
 
@@ -60,9 +60,11 @@ ggsurvplot(fit = km_fit, data = km_df,
            facet.by = "cohort"
            ) %++%
   AddKMLines(km_df) + 
-  scale_color_manual(values = c("#002F70", "#3C6FC4", "#DE738B", "#8E063B"))
+  scale_color_manual(values = c("#002F70", "#3C6FC4", "#DE738B", "#8E063B")) + 
+  labs(caption = "rec duration = 0h")
 ```
 
+## by cohort
 ```{r}
 # by cohort
 km_df <- dfs_tidy$long %>%
@@ -73,15 +75,17 @@ km_fit <- survfit(Surv(km_df$tt.exit, km_df$status) ~ cohort, data = km_df)
 ggsurvplot(fit = km_fit, data = km_df,
            #facet.by = "trt.recover"
            ) %++%
-  AddKMLines(km_df)
+  AddKMLines(km_df) +
+  labs(caption = "rec 0h @ 40C")
 
 # looking at the 40C grp only -- no major diffs
 ```
 
 
-## exptal trts
+# kms exptal
+## by rec temp
 ```{r}
-# effect of recovery temp
+# from entering
 km_df <- dfs_tidy$long %>%
   filter(subset == "fromenter" & trt.enter == 40) # ohh this is where im hitting issues w the subsetting...
 km_fit <- survfit(Surv(km_df$tt.exit, km_df$status) ~ trt.recover, data = km_df)
@@ -90,10 +94,51 @@ ggsurvplot(fit = km_fit, data = km_df,
            #facet.by = "cohort"
            facet.by = "trt.duration"
            ) %++%
-  AddKMLines(km_df, dt.recover #idk how to get the vlines only on the relevant panels
-             )
+  AddKMLines(km_df, dt.recover, 
+             trt.duration 
+             ) +
+  scale_color_manual(values = c("#002F70", "#3C6FC4", "#DE738B", "#8E063B")) +
+  labs(caption = "t0 = enter")
 ```
 
+```{r}
+# from return
+km_df <- dfs_tidy$long %>%
+  filter(subset == "fromreturn" & trt.enter == 40) 
+km_fit <- survfit(Surv(km_df$tt.exit, km_df$status) ~ trt.recover, data = km_df)
+
+ggsurvplot(fit = km_fit, data = km_df,
+           #facet.by = "cohort"
+           facet.by = "trt.duration"
+           ) %++%
+  AddKMLines(km_df, dt.return, 
+             trt.duration 
+             ) +
+  scale_color_manual(values = c("#002F70", "#3C6FC4", "#DE738B", "#8E063B")) +
+  labs(caption = "t0 = return to 40C")
+```
+
+```{r}
+# for STOR consult: differences in surv curves depending on where you start
+# km_df <-
+#   list(fromenter = dfs_tidy$long %>% filter(trt.enter == 40 & subset == "fromenter"),
+#        fromreturn = dfs_tidy$long %>% filter(trt.enter == 40 & subset == "fromreturn"))
+km_df <- dfs_tidy$long %>% filter(trt.enter == 40, subset != "fromrecover")
+km_fit <- surv_fit(Surv(tt.exit, status) ~ trt.recover, data = km_df)
+
+ggsurvplot_facet(fit = km_fit, data = km_df,
+                 facet.by = c("subset", "trt.duration")) +
+  AddKMLines(df = filter(km_df, subset == "fromenter"), dt.enter, trt.duration, subset) +
+  AddKMLines(df = filter(km_df, subset == "fromreturn"), dt.return, trt.duration, subset) +
+  scale_color_manual(values = c("#002F70", "#3C6FC4", "#DE738B", "#8E063B")) +
+  labs(caption = "(varying t0)")
+
+
+```
+
+
+
+## by rec dur
 ```{r}
 # effect of trt.duration
 km_df <- dfs_tidy$long %>%
@@ -104,10 +149,10 @@ ggsurvplot(fit = km_fit, data = km_df,
            facet.by = "cohort"
            #facet.by = "trt.recover"
            ) %++%
-  AddKMLines(km_df, dt.recover
+  AddKMLines(km_df, dt.recover, cohort
              )
 ```
-
+## by cohort
 ```{r}
 # effect of cohort
 km_df <- dfs_tidy$long %>%
@@ -118,15 +163,21 @@ ggsurvplot(fit = km_fit, data = km_df,
            #facet.by = "trt.recover",
            facet.by = "trt.duration"
            ) %++%
-  AddKMLines(km_df, dt.recover
+  AddKMLines(km_df, dt.recover, trt.duration
              )
 ```
+
+
+
+
 # surv props
 
+## overall
+- using simulated 40C data
+
 ```{r}
-dfs_tidy$wide %>%
-  CalcSurvProps(., trt.recover, trt.duration) %>%
-  filter(status %in% c("surv", "died")) %>%
+dfs_tidy$widesim %>%
+  CalcSurvProps(., trt.recover, trt.duration) %>% 
   ggplot(aes(y = p, x = timept,
              fill = status)) +
   geom_col() +
@@ -134,14 +185,15 @@ dfs_tidy$wide %>%
   scale_x_discrete(guide = guide_axis(angle = 45))
   
 
-dfs_tidy$wide %>%
-  CalcSurvProps(., trt.recover, trt.duration) %>%
-  filter(status %in% c("initial")) %>% 
-  ggplot(aes(y = n, x = timept,
+dfs_tidy$widesim %>%
+  CalcSurvProps(., trt.recover, trt.duration) %>% 
+  #filter(status == "surv") %>%
+  ggplot(aes(y = n.initial, x = timept,
              group = interaction(trt.recover, trt.duration),
-             #fill = status
              )) +
   geom_point() + geom_line() +
   facet_grid(trt.duration ~ trt.recover, drop = TRUE) +
-  scale_x_discrete(guide = guide_axis(angle = 45))
+  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  labs(caption = "starting N at timepts")
 ```
+

@@ -4,80 +4,20 @@
 # dump of viz stuff
 
 
-## 2026-01-12 GIVING UP! 
-#' #' creating km fits:
-#' #' `FitKMs` creates a survival fit for a subset of data to be used later
-#' #' in ggsurvplot.
-#' #' 
-#' #' args: 
-#' #'  * df: should have `tt.exit` and `fate` cols for Surv object fitting
-#' #'  * var: response var for the Surv object
-#' #' 
-#' FitKMs <- function(df, var){
-#'   # get the fit
-#'   df <- filter(df, fate %in% c(0,1))
-#'   var <- deparse(substitute(var)) 
-#'     # or skip this by passing in "var"in quotes
-#'   var <- df[[var]]
-#'   
-#'   surv <- Surv(df$tt.exit, df$fate)
-#'   fit <- surv_fit(surv ~ var, data = df)
-#'   
-#'   #return(fit) # return only the fit for ggsurvfit
-#'   #list(fit = fit, df = df)
-#'   
-#'   # plot
-#'   ggsurv <- ggsurvplot(
-#'     fit = fit, data = df)
-#'   
-#'   return(ggsurv)
-#' }
-
-
-
-
-# (WIP) adding km vertical lines
-# df %>% calc times %>% scale to 0 %>% add geoms
+# adding km vertical lines
+# roadmap: df %>% calc times %>% scale to t0 %>% add geoms
 #' usage: ggsurvplot() %++% AddKMLines() 
 #' args:
-#'  * df = probably same as km_df; need to specify
+#'  * df = probably same as km_df; but need to specify in the fn call.
+#'         subset beforehand if using ggsurvplot_facet.
 #'  * ... = grouping vars (based on ggsurv facet/groups)
+#'  * t0 = dt.x, where x = from enter/rec/return subset. or set NA (see AddKMLines_NA (wip)).
+#'         should match faceting vars so vlines only show up on relevant panels
+#'         
 
-# works, more or less 
-# .AddKMLines0 <- function(df, t0 = NULL, ...){
-#   # get enter/recover/return times
-#   #df1 <- km_df %>%
-#   df %>%
-#     .GroupTDT() %>%
-#     #group_by(!!!rlang::ensyms(...)) %>%
-#     summarise(dt.enter, dt.recover, dt.return) %>% # times arent that even still..
-#     drop_na() %>% unique()
-#   
-#   # recalcs T0 if T0 =/= enter date
-#   # (doesnt work)
-#   if(!is.null(t0)){
-#     #t0 <- enquo(t0)
-#     #df <- df1 %>%
-#     df <- df %>%
-#       #mutate_all(~ . - !!t0) %>%
-#       mutate_all(~ . - {{t0}}) %>%
-#       mutate(across(everything(), ~ replace(.x, which(.x <0), NA))) %>%
-#       unique()
-#   }
-#   
-#   # plot
-#   return(
-#     list(geom_vline(data = df, aes(xintercept = dt.recover), color = "skyblue"),
-#          geom_vline(data = df, aes(xintercept = dt.return), color = "orange"),
-#          geom_vline(data = df, aes(xintercept = dt.enter), color = "red")
-#     )
-#   )
-# }
-
-## uhhh this works now
-## ... = should match faceting vars so vlines only show up on relevant panels
 AddKMLines <- function(df, t0, ...){
   if(!missing(t0)){
+    # & !is.na(t0) sorta works as a bypass if forcing t0=NA to define grouping vars
     df <- df %>%
       group_by(!!!rlang::ensyms(...)) %>%
       summarise(dt.enter, dt.recover, dt.return) %>% 
@@ -92,6 +32,8 @@ AddKMLines <- function(df, t0, ...){
       drop_na() %>% unique()
   }
   
+  #return(df) # troubleshooting
+  
   # plot
   return(
     list(geom_vline(data = df, aes(xintercept = dt.recover), 
@@ -102,21 +44,3 @@ AddKMLines <- function(df, t0, ...){
   )
 }
 
-
-# ggsurvplot(fit = km_fit, data = km_df,
-#            facet.by = "cohort"
-# ) %++%
-# AddKMLines2(df = km_df, 
-#             t0 = dt.recover
-#             ) %>% View()
-
-# works as expected
-# calc.kmtimes0 <- function(df, day0){
-#   df %>%
-#     summarise(dt.enter, dt.recover, dt.return) %>% 
-#     drop_na() %>% unique() %>%
-#     mutate_all(~ . - {{day0}}) %>%
-#     mutate(across(everything(), function(x) replace(x, which(x<0), NA))) %>% unique()
-# }
-# 
-# calc.kmtimes0(km_df, dt.recover)
