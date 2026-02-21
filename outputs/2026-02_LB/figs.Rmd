@@ -1,0 +1,24 @@
+---
+title: "260227 LB figs"
+date: "2026-02-18"
+---
+
+# preamble and loading
+
+figs for LB/committee update
+
+
+
+
+```{r load libs and utils, warning=FALSE}
+library(tidyverse)
+#library(survminer)
+library(patchwork)
+
+here::i_am("outputs/2026-02_LB/tbd.Rmd")
+library(here)
+
+source(here("_ntw/scripts/utils/wrangle.R"))
+source(here("_ntw/scripts/utils/analysis.R"))
+```
+
