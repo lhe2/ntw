@@ -8,8 +8,6 @@ date: "2026-02-18"
 figs for LB/committee update
 
 
-
-
 ```{r load libs and utils, warning=FALSE}
 library(tidyverse)
 #library(survminer)
@@ -22,3 +20,103 @@ source(here("_ntw/scripts/utils/wrangle.R"))
 source(here("_ntw/scripts/utils/analysis.R"))
 ```
 
+```{r load data, warning=FALSE}
+source(here("_ntw/scripts/R/tidy-dev.R"))
+dfs_imported <- list(
+  ntw_wide = dfs_tidy$wide,
+  ntw_long = dfs_tidy$long
+)
+dfs_imported <- dfs_imported %>%
+  lapply(., \(x){
+    x %>%
+      mutate(trt = as.factor(trt))
+  })
+
+rm(dfs_tidy)
+```
+
+
+# 2x2 results
+- pupation big 3
+
+## wrangle
+
+```{r}
+# pivot
+dfs_ntw <- list(
+  ss_dev = dfs_imported$ntw_long %>%
+    filter(year == 2023,
+           pop == "lab" & diet == "LD",
+           instar == "pupa",
+           is.ntw %in% c(0, 2)) %>% 
+    mutate(mass = mass/1000,
+           devrate = 1/tt,
+           across(starts_with("trt"), as.factor)) %>%
+    group_by(trt.meanT, trt.flucT) %>% 
+    summarise(n = n(),
+              avg.mass = mean(mass, na.rm = TRUE),
+              se.mass = se(mass),
+              avg.devrate = mean(devrate, na.rm = TRUE),
+              se.devrate = se(devrate)),
+  
+  ss_surv = dfs_imported$ntw_wide %>%
+    filter(year == 2023,
+           pop == "lab" & diet == "LD",
+           is.ntw %in% c(0, 2)) %>%
+    mutate(across(starts_with("trt"), as.factor)) %>%
+    group_by(trt.meanT, trt.flucT) %>%
+    summarise(n.surv = sum(is.pup == 1),
+              p.surv = n.surv/sum(is.pup %in% c(0, 1)),
+              se.surv = se.prop(p.surv, n.surv))
+)
+```
+
+## big 3
+
+```{r}
+.plotfn <- function(x){
+  x %>%
+    ggplot(aes(x = trt.meanT,
+               lty = trt.flucT, shape = trt.flucT,
+               group = trt.flucT)) +
+    geom_point(size = 2) +
+    geom_line() +
+    geom_errorbar(width = 0.08, lty = "solid",
+                  show.legend = FALSE)
+}
+
+p1 <- dfs_ntw$ss_surv %>%
+  .plotfn() +
+  aes(y = p.surv,
+      ymax = p.surv + se.surv,
+      ymin = p.surv - se.surv) +
+  ylim(c(0, 1)) +
+  labs(y = "proportion survived to pupation") 
+
+p2 <- dfs_ntw$ss_dev %>%
+  .plotfn() +
+  aes(y = avg.mass,
+      ymax = avg.mass + se.mass,
+      ymin = avg.mass - se.mass) +
+  labs(y = "pupal mass (g)") 
+
+p3 <- dfs_ntw$ss_dev %>%
+  .plotfn() +
+  aes(y = avg.devrate,
+      ymax = avg.devrate + se.devrate,
+      ymin = avg.devrate - se.devrate) +
+  labs(y = "development rate (1/days)")
+
+(p1 + p2 + p3) +
+  plot_layout(axes = "collect", 
+              guides = "collect",
+              widths = c(1, 1, 1)
+              ) &
+  labs(x = "mean temperature (°C)",
+       lty = "fluctuation (°C)", shape = "fluctuation (°C)") &
+  scale_shape_discrete(labels = c("±0", "±7")) &
+  scale_linetype_discrete(labels = c("±0", "±7")) &
+  theme_bw() &
+  theme(legend.position = "bottom")
+
+```
