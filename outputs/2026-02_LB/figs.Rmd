@@ -10,26 +10,39 @@ figs for LB/committee update
 
 ```{r load libs and utils, warning=FALSE}
 library(tidyverse)
-#library(survminer)
 library(patchwork)
+library(survival)
+library(survminer)
 
-here::i_am("outputs/2026-02_LB/tbd.Rmd")
+here::i_am("outputs/2026-02_LB/figs.Rmd")
 library(here)
 
 source(here("_ntw/scripts/utils/wrangle.R"))
 source(here("_ntw/scripts/utils/analysis.R"))
+
+source(here("_tdt/scripts/utils/wrangle.R"))
 ```
 
 ```{r load data, warning=FALSE}
 source(here("_ntw/scripts/R/tidy-dev.R"))
-dfs_imported <- list(
-  ntw_wide = dfs_tidy$wide,
-  ntw_long = dfs_tidy$long
-)
-dfs_imported <- dfs_imported %>%
+dfs_ntw <- list(
+  wide = dfs_tidy$wide,
+  long = dfs_tidy$long
+) %>%
   lapply(., \(x){
     x %>%
-      mutate(trt = as.factor(trt))
+    mutate(across(starts_with("trt"), as.factor))
+  })
+
+source(here("_tdt/scripts/R/tidy.R"))
+dfs_tdt <- list(
+  wide = dfs_tidy$wide,
+  long = dfs_tidy$long
+) %>%
+  lapply(., \(x){
+    x %>%
+      filter(status %in% c(0, 1)) %>% # drop pmc bugs
+      mutate(across(starts_with("trt"), as.factor))
   })
 
 rm(dfs_tidy)
@@ -43,15 +56,14 @@ rm(dfs_tidy)
 
 ```{r}
 # pivot
-dfs_ntw <- list(
-  ss_dev = dfs_imported$ntw_long %>%
+dfs_ntw1 <- list(
+  ss_dev = dfs_ntw$long %>%
     filter(year == 2023,
            pop == "lab" & diet == "LD",
            instar == "pupa",
            is.ntw %in% c(0, 2)) %>% 
     mutate(mass = mass/1000,
-           devrate = 1/tt,
-           across(starts_with("trt"), as.factor)) %>%
+           devrate = 1/tt) %>%
     group_by(trt.meanT, trt.flucT) %>% 
     summarise(n = n(),
               avg.mass = mean(mass, na.rm = TRUE),
@@ -59,11 +71,10 @@ dfs_ntw <- list(
               avg.devrate = mean(devrate, na.rm = TRUE),
               se.devrate = se(devrate)),
   
-  ss_surv = dfs_imported$ntw_wide %>%
+  ss_surv = dfs_ntw$wide %>%
     filter(year == 2023,
            pop == "lab" & diet == "LD",
            is.ntw %in% c(0, 2)) %>%
-    mutate(across(starts_with("trt"), as.factor)) %>%
     group_by(trt.meanT, trt.flucT) %>%
     summarise(n.surv = sum(is.pup == 1),
               p.surv = n.surv/sum(is.pup %in% c(0, 1)),
@@ -76,6 +87,7 @@ dfs_ntw <- list(
 ```{r}
 .plotfn <- function(x){
   x %>%
+    #filter(trt.flucT == 0) %>%
     ggplot(aes(x = trt.meanT,
                lty = trt.flucT, shape = trt.flucT,
                group = trt.flucT)) +
@@ -85,7 +97,7 @@ dfs_ntw <- list(
                   show.legend = FALSE)
 }
 
-p1 <- dfs_ntw$ss_surv %>%
+p1 <- dfs_ntw1$ss_surv %>%
   .plotfn() +
   aes(y = p.surv,
       ymax = p.surv + se.surv,
@@ -93,14 +105,14 @@ p1 <- dfs_ntw$ss_surv %>%
   ylim(c(0, 1)) +
   labs(y = "proportion survived to pupation") 
 
-p2 <- dfs_ntw$ss_dev %>%
+p2 <- dfs_ntw1$ss_dev %>%
   .plotfn() +
   aes(y = avg.mass,
       ymax = avg.mass + se.mass,
       ymin = avg.mass - se.mass) +
   labs(y = "pupal mass (g)") 
 
-p3 <- dfs_ntw$ss_dev %>%
+p3 <- dfs_ntw1$ss_dev %>%
   .plotfn() +
   aes(y = avg.devrate,
       ymax = avg.devrate + se.devrate,
