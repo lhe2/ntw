@@ -132,3 +132,82 @@ p3 <- dfs_ntw1$ss_dev %>%
   theme(legend.position = "bottom")
 
 ```
+
+# ntw results
+
+## wrangle
+
+```{r}
+dfs_ntw2 <- list(
+  ss_dev = dfs_ntw$long %>%
+    FilterForNTWTrts() %>%
+    filter(!(pop == "lab" & diet == "TB"),
+           instar == "pupa") %>%
+    mutate(mass = mass/1000,
+           devrate = 1/tt) %>%
+    group_by(trt, trt.type, pop) %>%
+    summarise(n = n(),
+              avg.mass = mean(mass, na.rm = TRUE),
+              se.mass = se(mass),
+              avg.devrate = mean(devrate, na.rm = TRUE),
+              se.devrate = se(devrate)),
+  
+  ss_surv = dfs_ntw$wide %>%
+    FilterForNTWTrts() %>% 
+    filter(!(pop == "lab" & diet == "TB"),
+           pop != "col",
+           is.ntw %in% c(1,2)) %>% 
+    group_by(trt, trt.type, pop) %>%
+    summarise(n = n(),
+              n2 = sum(is.pup %in% c(0, 1)),
+              n.surv = sum(is.pup == 1, na.rm = TRUE),
+              p.surv = n.surv/sum(is.pup %in% c(0, 1)),
+              se.surv = se.prop(p.surv, n.surv))
+)
+```
+
+## big 3
+
+```{r}
+.plotfn <- function(x){
+  x %>%
+    ggplot(aes(x = trt, lty = pop, shape = pop,
+             group = interaction(pop, trt.type))) +
+    geom_point(size = 2) +
+    geom_line() +
+    geom_errorbar(width = 0.1, lty= "solid", show.legend = FALSE) +
+    facet_grid(~ trt.type, scales = "free_x", space = "free_x",
+               labeller = as_labeller(c(`ctrl` = "control (constant)",
+                                        `expt` = "experimental (40 - X)"))
+               ) +
+    theme_bw() +
+    scale_x_discrete(labels = c("260" = "26", "419" = "19", "426" = "26", "433" = "33")) +
+    scale_linetype_manual(values = c("field" = "dashed", "lab" = "solid")) +
+    scale_shape_manual(values = c("field" = 1, "lab" = 20)) +
+    labs(x = "minimum temperature",
+         lty = "population", shape = "population")
+}
+
+dfs_ntw2$ss_surv %>%
+  .plotfn() +
+  aes(y = p.surv,
+      ymax = p.surv + se.surv,
+      ymin = p.surv - se.surv) +
+  ylim(c(0, 1)) +
+  labs(y = "proportion survived to pupation")
+
+dfs_ntw2$ss_dev %>%
+  .plotfn() +
+  aes(y = avg.mass,
+      ymax = avg.mass + se.mass,
+      ymin = avg.mass - se.mass) +
+  ylim(c(0, 6.25)) +
+  labs(y = "pupal mass (g)") 
+
+dfs_ntw2$ss_dev %>%
+  .plotfn() +
+  aes(y = avg.devrate,  
+      ymax = avg.devrate + se.devrate,
+      ymin = avg.devrate - se.devrate) +
+  labs(y = "development rate (1/days)")
+```
