@@ -48,7 +48,6 @@ dfs_tdt <- list(
 rm(dfs_tidy)
 ```
 
-
 # 2x2 results
 - pupation big 3
 
@@ -210,4 +209,101 @@ dfs_ntw2$ss_dev %>%
       ymax = avg.devrate + se.devrate,
       ymin = avg.devrate - se.devrate) +
   labs(y = "development rate (1/days)")
+```
+
+
+
+
+# tdt results
+
+- ctrls survival to 3rd (probably need to use KM curve or sth.. bc 4ths dont even survive to 3rd lol)
+- ctrls dev to 4th
+
+## kms
+
+### ctrls + temp
+- how control bugs fared
+
+```{r}
+km_df <- dfs_tdt$long %>%
+  filter(subset == "fromenter" & trt.duration == 0)
+km_fit <- survfit(Surv(km_df$tt.exit, km_df$status) ~ trt.recover, data = km_df)
+
+ggsurvplot(fit = km_fit, data = km_df) + 
+  labs(caption = "from enter")
+```
+
+
+### 40s + recovery duration
+- how 0, 24, 48h hot bugs fared
+
+```{r}
+# from enter
+km_df <- dfs_tdt$long %>%
+  filter(subset == "fromenter" & trt.enter == 40)
+km_fit <- survfit(Surv(km_df$tt.exit, km_df$status) ~ trt.duration, data = km_df)
+
+ggsurvplot(fit = km_fit, data = km_df) + 
+  labs(caption = "from enter")
+  
+# from return
+km_df <- dfs_tdt$long %>%
+  filter(subset == "fromreturn" & trt.enter == 40)
+km_fit <- survfit(Surv(km_df$tt.exit, km_df$status) ~ trt.duration, data = km_df)
+
+ggsurvplot(fit = km_fit, data = km_df) +
+  labs(caption = "from return")
+
+# another flavor (being ctrl vs expt)
+km_df <- dfs_tdt$long %>%
+  filter(subset == "fromreturn" & trt.enter == 40)
+km_fit <- survfit(Surv(km_df$tt.exit, km_df$status) ~ trt.type, data = km_df)
+
+ggsurvplot(fit = km_fit, data = km_df) +
+  labs(caption = "from return")
+
+```
+
+### recovery + temp
+```{r}
+# from enter
+km_df <- dfs_tdt$long %>%
+  filter(subset == "fromenter" & trt.type == "expt")
+km_fit <- survfit(Surv(km_df$tt.exit, km_df$status) ~ trt.duration, data = km_df)
+
+ggsurvplot(fit = km_fit, data = km_df,
+           facet.by = "trt.recover") + 
+  labs(caption = "from enter")
+  
+# from return
+km_df <- dfs_tdt$long %>%
+  filter(subset == "fromreturn" & trt.type == "expt")
+km_fit <- survfit(Surv(km_df$tt.exit, km_df$status) ~ trt.duration, data = km_df)
+
+ggsurvplot(fit = km_fit, data = km_df,
+           facet.by = "trt.recover") +
+  labs(caption = "from return")
+```
+
+### recovery + duration
+```{r}
+# from enter
+km_df <- dfs_tdt$long %>%
+  filter(subset == "fromenter" & trt.type == "expt")
+km_fit <- survfit(Surv(km_df$tt.exit, km_df$status) ~ trt.recover, data = km_df)
+
+ggsurvplot(fit = km_fit, data = km_df,
+           facet.by = "trt.duration") + 
+  labs(caption = "from enter") +
+    scale_color_hue(direction = -1)
+  
+# from return
+km_df <- dfs_tdt$long %>%
+  filter(subset == "fromreturn" & trt.type == "expt")
+km_fit <- survfit(Surv(km_df$tt.exit, km_df$status) ~ trt.recover, data = km_df)
+
+ggsurvplot(fit = km_fit, data = km_df,
+           facet.by = "trt.duration") +
+  labs(caption = "from return") +
+    scale_color_hue(direction = -1)
 ```
