@@ -125,3 +125,42 @@ CalcSurvProps <- function(df, ...){
   # } else return(df)
   
 }
+
+
+CalcDevSS <- function(wide_df){
+  # calcs and pivot
+  long_df <- wide_df %>%
+    mutate(# breaking so omit for now...
+      # status.3rd = case_when(!is.na(jdate.3rd) ~ 1, # revisit..
+      #                        TRUE ~ 0),
+      
+      # TODO: stdise by enter or hatch date?? (probably enter right...)
+      tt.return = jdate.return - jdate.enter,
+      tt.3rd = jdate.3rd - jdate.enter,
+      tt.4th = jdate.4th - jdate.enter,
+      tt.5th = jdate.5th - jdate.enter) %>%
+    pivot_longer(starts_with(c("tt", "mass")),
+                 names_to = c(".value", "instar"),
+                 names_sep = "\\.") %>%
+    drop_na(tt)
+  
+  # ss calcs
+  long_df %>%
+    mutate(logmass = log(mass)) %>%
+    group_by(across(c(starts_with("trt"), instar))) %>%
+    summarise(n = n(),
+              #n = sum(!is.na(.)),
+              avg.mass = mean(mass, na.rm = TRUE),
+              se.mass = se(mass),
+              avg.logmass = mean(logmass, na.rm = TRUE),
+              se.logmass = se(logmass),
+              avg.tt = mean(tt, na.rm = TRUE),
+              se.tt = se(tt),
+              
+              # TODO: breaking.. omit for now
+              # # props dont work w cold ctrls (only) bc everyones alive lol
+              # # also bc i think this needs to be done wide...
+              # prop.surv = sum(status.3rd == 1)/n,
+              # se.surv = se.prop(prop.surv, n)
+    )
+}

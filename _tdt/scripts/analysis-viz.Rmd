@@ -198,3 +198,218 @@ dfs_tidy$widesim %>%
   scale_x_discrete(guide = guide_axis(angle = 45)) +
   labs(caption = "N = total bugs at enter")
 ```
+
+# development
+
+## trajectories of cold ctrls
+
+```{r}
+dfs_tidy$wide %>%
+  CalcDevSS() %>%
+  filter(trt.duration == 0,
+                instar %in% c("3rd", "4th", "5th")) %>%
+  ggplot(aes(y = avg.logmass, x = avg.tt,
+             col = trt, shape = trt)) +
+  geom_point(size = 2) +
+  geom_line() +
+  geom_errorbar(aes(ymax = avg.logmass + se.logmass,
+                    ymin = avg.logmass - se.logmass),
+                width = 0.25) +
+  geom_errorbarh(aes(xmax = avg.tt + se.tt,
+                     xmin = avg.tt - se.tt),
+                 height = 0.1) +
+  labs(caption = "mean±se; development trajectories from\n3rd-5th instars (ctrls)",
+       y = "ln mass (mg)",
+       x = "time to instar (days)") +
+  scale_color_hue(direction = -1)
+```
+
+## trajectories of hot return bugs (return - 3rd)
+- uhh interesting but not quite it. i think just do the instars separately
+
+```{r eval=FALSE}
+dfs_tidy$wide %>%
+  CalcDevSS() %>% 
+  filter(#trt.type == "expt",
+         trt.recover != 40,
+         instar %in% c("return", "3rd")) %>%
+  mutate(instar = factor(instar, levels = c("return", "3rd"))) %>%
+  ggplot(aes(y = avg.logmass,x = avg.tt, 
+             shape = instar,
+             color = trt.recover,
+             group = trt)) +
+  geom_point(size = 2) +
+  geom_line() +
+  geom_errorbar(aes(ymax = avg.logmass + se.logmass,
+                    ymin = avg.logmass - se.logmass,
+                    width = 0.5)) +
+  facet_grid(~ trt.duration)
+```
+
+## masses of hot return bugs (@ return/3rd)
+
+### util fns
+
+```{r}
+# note -- 2ndary versions below also sorta depend on these original ones lol
+
+.calcfn <- function(x){
+  x %>%
+    filter(!(trt.type == "expt" & jdate.2nd > jdate.return)) %>%
+    mutate(trt.to3rd = case_when(trt.type == "expt" & is.na(jdate.3rd) ~ "expt no 3rd",
+                                 trt.type == "expt" & !is.na(jdate.3rd) ~ "expt 3rd",
+                                 TRUE ~ "ctrl"
+                                 
+                                 # trt.type == "expt" & is.na(jdate.3rd) ~ "no",
+                                 # TRUE ~ "yes"
+    )) %>%
+    CalcDevSS() #%>% 
+  #filter(instar %in% c("return", "3rd")) %>%
+  #mutate(instar = factor(instar, levels = c("return", "3rd"))) %>%
+  
+}
+
+.plotfn <- function(x){
+  x %>%
+    ggplot(aes(y = avg.mass, x = trt.to3rd,
+               color = trt.duration,
+               shape = trt.duration,
+               #shape = instar
+               )) +
+    geom_point(size = 2) +
+    geom_errorbar(aes(ymax = avg.mass + se.mass,
+                      ymin = avg.mass - se.mass,
+                      width = 0.25)) +
+    ## omit this when x = trt.duration bc its too messy.
+    # geom_text(aes(label = n),
+    #           hjust = -0.7, vjust = -0.6, size = 4,
+    #           show.legend = FALSE) +
+    facet_grid(~ trt.recover, scales = "free_x", drop = TRUE) +
+    labs(y = "mass (mg)",
+         x = "expt group",
+         color = "recovery\nduration (h)",
+         shape = "recovery\nduration (h)")
+}
+```
+
+### by trt-outcome group
+```{r}
+# parsed out expt bugs that made it to 3rd
+dfs_tidy$wide %>%
+  .calcfn() %>% 
+  filter(instar == "return", 
+         trt.type != "ctrl") %>%
+  .plotfn() +
+  labs(caption = "masses @ return")
+
+
+dfs_tidy$wide %>%
+  .calcfn() %>%
+  filter(instar == "3rd") %>%
+  .plotfn() +
+  labs(caption = "masses @ 3rd")
+```
+
+```{r eval=FALSE}
+# using ln(mass)
+# need .calcfn from utils
+
+# i like the actual mass more (than the ln) bc theyre so tiny -- 
+# but dumping the ln one just in case..
+
+.plotfn2 <- function(x){
+  x %>%
+    ggplot(aes(y = avg.logmass, x = trt.to3rd,
+               color = trt.duration,
+               shape = trt.duration,
+               #shape = instar
+               )) +
+    geom_point(size = 2) +
+    geom_errorbar(aes(ymax = avg.logmass + se.logmass,
+                      ymin = avg.logmass - se.logmass,
+                      width = 0.25)) +
+    facet_grid(~ trt.recover, scales = "free_x", drop = TRUE) +
+    labs(y = "ln mass (mg)",
+         x = "expt group",
+         color = "recovery\nduration (h)",
+         shape = "recovery\nduration (h)")
+}
+
+dfs_tidy$wide %>%
+  .calcfn() %>%
+  filter(instar == "return", 
+         trt.type != "ctrl") %>%
+  .plotfn2() +
+  labs(caption = "masses @ return")
+
+dfs_tidy$wide %>%
+  .calcfn() %>%
+  filter(instar == "3rd") %>%
+  .plotfn2() +
+  labs(caption = "masses @ 3rd")
+```
+
+
+### by trt duration
+
+#### util fns
+```{r}
+# (needs og .plotfn and .calcfn util fns)
+## v2 of these fns mostly just overwrite some of the filtering/axes for this view bc im lazy
+## also omit geom_text from og .plotfn if not already bc messy
+
+.calcfn2 <- function(x){
+  x %>%
+    .calcfn() %>% 
+    filter(trt != 40,
+           instar %in% c("3rd", "return")
+    ) %>%
+    mutate(instar = factor(instar, levels = c("return", "3rd")))
+}
+
+.plotfn2 <- function(x){
+  x %>%
+    .plotfn() +
+    aes(x = trt.duration,
+        color = trt.recover,
+        shape = trt.to3rd) +
+    facet_grid(#instar 
+      ~ trt.recover) +
+    scale_color_hue(direction = -1)
+}
+```
+
+
+```{r}
+# all bugs grouped tgt
+dfs_tidy$wide %>%
+  filter(!(trt.type == "expt" & jdate.2nd > jdate.return)) %>%
+  CalcDevSS() %>%
+  filter(trt != 40,
+         instar %in% c("3rd", "return"),
+         !(trt.duration == 0 & instar == "return")
+         ) %>%
+  mutate(instar = factor(instar, levels = c("return", "3rd"))) %>%
+  .plotfn() +
+  aes(x = trt.duration,
+      color = trt.recover,
+      shape = trt.type
+      ) +
+  facet_grid(~ instar, scales = "free_x", drop = TRUE) +
+  labs(caption = "(unparsed expt bugs)")
+
+# parsed out expt bugs that made it to 3rd
+dfs_tidy$wide %>%
+  .calcfn2() %>%
+  filter(trt.duration != 0, instar == "return") %>%
+  .plotfn2() +
+  scale_shape_manual(values = c(19, 1)) +
+  labs(caption= "mass at return")
+
+dfs_tidy$wide %>%
+  .calcfn2() %>%
+  filter(instar == "3rd") %>%
+  .plotfn2() +
+  scale_shape_manual(values = c(19, 17, 2)) +
+  labs(caption = "mass at 3rd")
+```
