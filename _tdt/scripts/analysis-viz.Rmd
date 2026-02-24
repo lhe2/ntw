@@ -43,7 +43,6 @@ dfs_tidy <- dfs_tidy %>% lapply(., \(x){
 })
 ```
 
-
 # kms ctrls
 
 ## by rec temp
@@ -176,15 +175,18 @@ ggsurvplot(fit = km_fit, data = km_df,
 - using simulated 40C data
 
 ```{r}
+# % bugs dying at each timept
+# (N gets reset to the current timept)
 dfs_tidy$widesim %>%
-  CalcSurvProps(., trt.recover, trt.duration) %>% 
+  CalcSurvProps(., trt.recover, trt.duration) %>% View()
   ggplot(aes(y = p, x = timept,
              fill = status)) +
   geom_col() +
   facet_grid(trt.duration ~ trt.recover, drop = TRUE) +
-  scale_x_discrete(guide = guide_axis(angle = 45))
+  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  labs(caption = "N = total bugs at start of timept")
   
-
+# running count of bugs thru expt
 dfs_tidy$widesim %>%
   CalcSurvProps(., trt.recover, trt.duration) %>% 
   #filter(status == "surv") %>%
@@ -194,6 +196,5 @@ dfs_tidy$widesim %>%
   geom_point() + geom_line() +
   facet_grid(trt.duration ~ trt.recover, drop = TRUE) +
   scale_x_discrete(guide = guide_axis(angle = 45)) +
-  labs(caption = "starting N at timepts")
+  labs(caption = "N = total bugs at enter")
 ```
-

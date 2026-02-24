@@ -98,8 +98,10 @@ CalcSurvProps <- function(df, ...){
                  names_pattern = "(n\\.[a-z]*)\\.([a-z]*\\d*)") %>% #View()
     filter(!(timept %in% c("enter24", "ret96"))) %>%
     mutate(n.died = n.initial - n.surv,
+           # % individuals per timept
            p.surv = n.surv/n.initial,
            p.died = n.died/n.initial,
+           # % individials overall
            P.surv = n.surv/n.total,
            P.died = n.died/n.total,
            timept = case_when(timept == "enter0" ~ "enter",
