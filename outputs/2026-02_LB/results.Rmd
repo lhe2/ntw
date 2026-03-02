@@ -406,3 +406,111 @@ dfs_tdt$ss_surv %>%
        shape = "recovery\nduration (h)",
        color = "recovery\nduration (h)")
 ```
+
+
+# # stats
+(do separately here bc the stats df is differnt from the fig df)
+
+## 2x2
+```{r}
+# df prep, exclude culled
+df <- dfs_ntw$wide %>% 
+  filter(is.pup != 2) %>%
+  FilterNTW1() %>%
+  mutate(tt.pupa = jdate.pupa - jdate.hatch)
+
+mods_ntw1 <- list(
+  surv = glm(is.pup ~ trt.meanT*trt.flucT, 
+             family = "binomial", data = df),
+  dev = lm(tt.pupa ~ trt.meanT*trt.flucT,
+           data = df),
+  mass = lm(mass.pupa ~ trt.meanT*trt.flucT*sex,
+           data = df %>% filter(sex %in% c("m", "f")))
+)
+
+mods_ntw1 %>% GetModelResults()
+```
+
+
+## ntw dev
+```{r ntw df prep}
+# hot bugs only; exclude culled
+dfs_ntw2 <- list_modify(
+  dfs_ntw,
+  df = dfs_ntw$wide %>%
+    FilterNTW2() %>%
+    filter(trt != 260,
+           is.pup != 2) %>%
+    mutate(tt.pupa = jdate.pupa - jdate.hatch)
+)
+```
+
+
+```{r}
+# survival
+mods_ntw2 <- list(
+  surv_all = glm(is.pup ~ year*pop*trt.minT,
+             family = "binomial", data = dfs_ntw2$df),
+  surv_noyr = glm(is.pup ~ pop*trt.minT,
+                 family = "binomial", data = dfs_ntw2$df)
+)
+
+mods_ntw2 %>%
+  GetModelResults()
+```
+
+```{r}
+# pupal mass
+mods_ntw2 <- list(
+  mass_all = lm(mass.pupa ~ year*pop*trt.minT*sex,
+                data = dfs_ntw2$df),
+  mass_noyr = lm(mass.pupa ~ pop*trt.minT*sex,
+                 data = dfs_ntw2$df)
+)
+
+mods_ntw2 %>%
+  GetModelResults()
+```
+
+```{r}
+# dev rate
+mods_ntw2 <- list(
+  ttpup_all = lm(tt.pupa ~ year*pop*trt.minT,
+                data = dfs_ntw2$df),
+  ttpup_noyr = lm(tt.pupa ~ pop*trt.minT,
+                 data = dfs_ntw2$df)
+)
+
+mods_ntw2 %>%
+  GetModelResults()
+```
+
+
+## recovery
+
+- mean survival time anovas
+- comparing hot vs not (different Z's):
+  - if hot, surv? `time*temp` (from enter)
+  - if hot and surv to 3rd, uhhh. something with return mass?
+
+
+```{r}
+# df prep
+dfs_tdt <- list_modify(
+  dfs_tdt,
+  df = dfs_tdt$wide %>%
+    mutate(tt.exit = dh.exit - dh.recover)
+)
+```
+
+```{r}
+# hot bugs only
+mods_rec <- list(
+  ifctrl = lm(tt.exit ~ trt.type, data = dfs_tdt$df),
+  rectrt = lm(tt.exit ~ trt.duration*trt.recover,
+              data = dfs_tdt$df %>% filter(trt.duration != 0))
+)
+
+mods_rec %>% GetModelResults()
+```
+
