@@ -1,12 +1,12 @@
 ---
-title: "260227 LB figs"
+title: "260227 LB figs n stats"
 date: "2026-02-18"
 ---
 
 # preamble and loading
 
 figs for LB/committee update
-
+  
 
 ```{r load libs and utils, warning=FALSE}
 library(tidyverse)
@@ -14,7 +14,7 @@ library(patchwork)
 library(survival)
 library(survminer)
 
-here::i_am("outputs/2026-02_LB/figs.Rmd")
+here::i_am("outputs/2026-02_LB/results.Rmd")
 library(here)
 
 source(here("_ntw/scripts/utils/wrangle.R"))
@@ -50,22 +50,26 @@ dfs_tdt <- list(
 rm(dfs_tidy)
 ```
 
-# 2x2 results
+# # 2x2 figs
 - pupation big 3
 
 ## wrangle
 
 ```{r}
+FilterNTW1 <- function(x){
+  x %>%
+    filter(year == 2023,
+           pop == "lab" & diet == "LD",
+           is.ntw %in% c(0, 2))
+}
+
 # pivot
 dfs_ntw1 <- list(
   ss_dev = dfs_ntw$long %>%
-    filter(year == 2023,
-           pop == "lab" & diet == "LD",
-           instar == "pupa",
-           is.ntw %in% c(0, 2)) %>% 
+    FilterNTW1() %>%
+    filter(instar == "pupa") %>% 
     mutate(mass = mass/1000,
-           devrate = 1/tt) %>%
-    group_by(trt.meanT, trt.flucT) %>% 
+           devrate = 1/tt,
            growthrate = mass/tt) %>%
     group_by(trt, trt.meanT, trt.flucT) %>% 
     summarise(n = n(),
@@ -77,9 +81,7 @@ dfs_ntw1 <- list(
               se.growthrate = se(growthrate)),
   
   ss_surv = dfs_ntw$wide %>%
-    filter(year == 2023,
-           pop == "lab" & diet == "LD",
-           is.ntw %in% c(0, 2)) %>%
+    FilterNTW1() %>%
     group_by(trt, trt.meanT, trt.flucT) %>%
     summarise(n.surv = sum(is.pup == 1),
               p.surv = n.surv/sum(is.pup %in% c(0, 1)),
@@ -164,15 +166,23 @@ dfs_ntw1$ss_dev %>%
 ```
 
 
+# # ntw figs
 
 ## wrangle
 
 ```{r}
-dfs_ntw2 <- list(
-  ss_dev = dfs_ntw$long %>%
+FilterNTW2 <- function(x){
+  x %>%
     FilterForNTWTrts() %>%
     filter(!(pop == "lab" & diet == "TB"),
-           instar == "pupa") %>%
+           pop != "col",
+           is.ntw %in% c(1,2))
+}
+
+dfs_ntw2 <- list(
+  ss_dev = dfs_ntw$long %>%
+    FilterNTW2() %>%
+    filter(instar == "pupa") %>%
     mutate(mass = mass/1000,
            devrate = 1/tt) %>%
     group_by(trt, trt.type, pop) %>%
@@ -183,10 +193,7 @@ dfs_ntw2 <- list(
               se.devrate = se(devrate)),
   
   ss_surv = dfs_ntw$wide %>%
-    FilterForNTWTrts() %>% 
-    filter(!(pop == "lab" & diet == "TB"),
-           pop != "col",
-           is.ntw %in% c(1,2)) %>% 
+    FilterNTW2() %>%
     group_by(trt, trt.type, pop) %>%
     summarise(n = n(),
               n2 = sum(is.pup %in% c(0, 1)),
@@ -207,14 +214,14 @@ dfs_ntw2 <- list(
     geom_line() +
     geom_errorbar(width = 0.1, lty= "solid", show.legend = FALSE) +
     facet_grid(~ trt.type, scales = "free_x", space = "free_x",
-               labeller = as_labeller(c(`ctrl` = "control (constant)",
-                                        `expt` = "experimental (40 - X)"))
+               labeller = as_labeller(c(`ctrl` = "26±0°C (control)",
+                                        `expt` = "40-X°C (nighttime warming)"))
                ) +
     theme_bw() +
     scale_x_discrete(labels = c("260" = "26", "419" = "19", "426" = "26", "433" = "33")) +
     scale_linetype_manual(values = c("field" = "dashed", "lab" = "solid")) +
-    scale_shape_manual(values = c("field" = 1, "lab" = 20)) +
-    labs(x = "minimum temperature",
+    scale_shape_manual(values = c("field" = 1, "lab" = 19)) +
+    labs(x = "minimum temperature (°C)",
          lty = "population", shape = "population")
 }
 
@@ -245,10 +252,10 @@ dfs_ntw2$ss_dev %>%
 
 
 
-# tdt results
+# # tdt figs
 
-- ctrls survival to 3rd (probably need to use KM curve or sth.. bc 4ths dont even survive to 3rd lol)
-- ctrls dev to 4th
+- const ctrls survival to 3rd (probably need to use KM curve or sth.. bc 4ths dont even survive to 3rd lol)
+- const ctrls dev to 4th
 
 ## kms
 
