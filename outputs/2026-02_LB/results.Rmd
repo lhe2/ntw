@@ -19,6 +19,7 @@ library(here)
 
 source(here("_ntw/scripts/utils/wrangle.R"))
 source(here("_ntw/scripts/utils/analysis.R"))
+source(here("_ntw/scripts/utils/analysis-stats.R"))
 
 source(here("_tdt/scripts/utils/wrangle.R"))
 ```
@@ -31,7 +32,8 @@ dfs_ntw <- list(
 ) %>%
   lapply(., \(x){
     x %>%
-    mutate(across(starts_with("trt"), as.factor))
+    mutate(across(c(starts_with("trt"), "year"),
+                  as.factor))
   })
 
 source(here("_tdt/scripts/R/tidy.R"))
@@ -64,17 +66,21 @@ dfs_ntw1 <- list(
     mutate(mass = mass/1000,
            devrate = 1/tt) %>%
     group_by(trt.meanT, trt.flucT) %>% 
+           growthrate = mass/tt) %>%
+    group_by(trt, trt.meanT, trt.flucT) %>% 
     summarise(n = n(),
               avg.mass = mean(mass, na.rm = TRUE),
               se.mass = se(mass),
               avg.devrate = mean(devrate, na.rm = TRUE),
-              se.devrate = se(devrate)),
+              se.devrate = se(devrate),
+              avg.growthrate = mean(growthrate, na.rm = TRUE),
+              se.growthrate = se(growthrate)),
   
   ss_surv = dfs_ntw$wide %>%
     filter(year == 2023,
            pop == "lab" & diet == "LD",
            is.ntw %in% c(0, 2)) %>%
-    group_by(trt.meanT, trt.flucT) %>%
+    group_by(trt, trt.meanT, trt.flucT) %>%
     summarise(n.surv = sum(is.pup == 1),
               p.surv = n.surv/sum(is.pup %in% c(0, 1)),
               se.surv = se.prop(p.surv, n.surv))
@@ -92,7 +98,7 @@ dfs_ntw1 <- list(
                group = trt.flucT)) +
     geom_point(size = 2) +
     geom_line() +
-    geom_errorbar(width = 0.08, lty = "solid",
+    geom_errorbar(width = 0.2, lty = "solid",
                   show.legend = FALSE)
 }
 
@@ -109,7 +115,8 @@ p2 <- dfs_ntw1$ss_dev %>%
   aes(y = avg.mass,
       ymax = avg.mass + se.mass,
       ymin = avg.mass - se.mass) +
-  labs(y = "pupal mass (g)") 
+  labs(y = "pupal mass (g)") +
+  ylim(c(3.9, 6.7))
 
 p3 <- dfs_ntw1$ss_dev %>%
   .plotfn() +
@@ -125,14 +132,38 @@ p3 <- dfs_ntw1$ss_dev %>%
               ) &
   labs(x = "mean temperature (°C)",
        lty = "fluctuation (°C)", shape = "fluctuation (°C)") &
-  scale_shape_discrete(labels = c("±0", "±7")) &
+  scale_shape_manual(labels = c("±0", "±7"), values = c(19, 1)) &
   scale_linetype_discrete(labels = c("±0", "±7")) &
   theme_bw() &
   theme(legend.position = "bottom")
 
 ```
 
-# ntw results
+## tpc-ish
+
+- aka rly just the growth rate
+- (to show effects of fluct)
+
+```{r}
+dfs_ntw1$ss_dev %>%
+  ggplot(aes(y = avg.growthrate,
+             x = trt.meanT,
+             shape = trt.flucT, lty = trt.flucT,
+             group = trt.flucT)) +
+  geom_point(size = 2) +
+  geom_line() +
+  geom_errorbar(aes(ymax = avg.growthrate + se.growthrate,
+                    ymin = avg.growthrate - se.growthrate),
+                width = 0.075, lty = "solid") +
+  scale_shape_manual(labels = c("±0", "±7"), values = c(19, 1)) +
+  scale_linetype_discrete(labels = c("±0", "±7")) +
+  labs(y = "growth rate (g/day)",
+       x = "mean temperature (°C)",
+       shape = "fluctuation (°C)", lty = "fluctuation (°C)") +
+  theme_bw()
+```
+
+
 
 ## wrangle
 
