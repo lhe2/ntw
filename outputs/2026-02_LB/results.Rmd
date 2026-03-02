@@ -307,3 +307,102 @@ ggsurvplot(fit = km_fit, data = km_df,
   labs(caption = "from return") +
     scale_color_hue(direction = -1)
 ```
+
+## time to exit
+
+```{r}
+# wrangle
+dfs_tdt <- list_modify(
+  dfs_tdt,
+  ss_surv = dfs_tdt$wide %>%
+  #filter(trt.duration %in% c(24, 48)) %>%
+    filter(fate == "died" & trt.enter == 40) %>%
+    mutate(exitfromreturn = dh.exit - dh.return) %>%
+  group_by(across(starts_with("trt"))) %>%
+  summarise(avg.ttexit.ret = mean(exitfromreturn, na.rm = TRUE),
+            se.ttexit.ret = se(exitfromreturn),
+            avg.ttexit.ent = mean(dt.exit, na.rm = TRUE),
+            se.ttexit.ent = se(dt.exit)
+            )
+)
+```
+
+### from enter
+
+```{r eval=FALSE}
+.plotfn <- function(x){
+  x %>%
+    ggplot(aes(y = avg.ttexit.ent,
+               x = trt.recover)) +
+    geom_point(size = 2) +
+    geom_line() +
+    geom_errorbar(aes(ymax = avg.ttexit.ent + se.ttexit.ent,
+                      ymin = avg.ttexit.ent - se.ttexit.ent),
+                  width = 0.25, lty = "solid") +
+    labs(y = "time to death (h)",
+         x = "recovery temperature (°C)",
+         #caption = "from enter"
+         ) +
+    theme_bw()
+}
+
+## facet by duration
+dfs_tdt$ss_surv %>%
+  .plotfn() +
+    facet_grid(~ trt.duration, scales = "free_x", space = "free_x")
+
+
+## not faceted
+dfs_tdt$ss_surv %>%
+  .plotfn() +
+  aes(lty = trt.duration, shape = trt.duration, color = trt.duration,
+      group = trt.duration) +
+  labs(lty = "recovery\nduration (h)",
+       shape = "recovery\nduration (h)",
+       color = "recovery\nduration (h)")
+```
+### from return
+
+```{r}
+.plotfn <- function(x){
+  x %>%
+    ggplot(aes(y = avg.ttexit.ret,
+               x = trt.recover)) +
+    geom_point(size = 2) +
+    geom_line() +
+    geom_errorbar(aes(ymax = avg.ttexit.ret + se.ttexit.ret,
+                      ymin = avg.ttexit.ret - se.ttexit.ret),
+                  width = 0.25, lty = "solid") +
+    labs(y = "time to death (h)",
+         x = "recovery temperature (°C)",
+         caption = "from return"
+         ) +
+    theme_bw()
+}
+
+## facet by duration
+dfs_tdt$ss_surv %>%
+  .plotfn() +
+    facet_grid(~ trt.duration, scales = "free_x", space = "free_x")
+
+dfs_tdt$ss_surv %>%
+  .plotfn() +
+  aes(lty = trt.duration, shape = trt.duration, color = trt.duration,
+      group = trt.duration) +
+  facet_grid(~ trt.type, scales = "free_x", space = "free_x",
+             labeller = as_labeller(c(`ctrl` = "40°C constant",
+                                      `expt` = "40°C + recovery"))) +
+  labs(lty = "recovery\nduration (h)",
+       shape = "recovery\nduration (h)",
+       color = "recovery\nduration (h)")
+
+
+## not faceted
+dfs_tdt$ss_surv %>%
+  .plotfn() +
+  aes(lty = trt.duration, shape = trt.duration, color = trt.duration,
+      group = trt.duration) +
+  labs(lty = "recovery\nduration (h)",
+       shape = "recovery\nduration (h)",
+       color = "recovery\nduration (h)")
+```
