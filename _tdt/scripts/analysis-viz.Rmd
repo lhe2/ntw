@@ -42,6 +42,7 @@ dfs_tidy <- dfs_tidy %>% lapply(., \(x){
     mutate(across(starts_with("trt"), as.factor))
 })
 ```
+# ## kms/survival curves
 
 # kms ctrls
 
@@ -166,7 +167,37 @@ ggsurvplot(fit = km_fit, data = km_df,
              )
 ```
 
+# ## development stuff
 
+# avg time to death
+
+(copied from from 2026-02 LB `results.Rmd`)
+
+## from enter
+```{r}
+# from enter
+km_df <- dfs_tidy$long %>%
+  filter(subset == "fromenter" & trt.type == "expt")
+km_fit <- survfit(Surv(km_df$tt.exit, km_df$status) ~ trt.recover, data = km_df)
+
+ggsurvplot(fit = km_fit, data = km_df,
+           facet.by = "trt.duration") + 
+  labs(caption = "from enter") +
+    scale_color_hue(direction = -1)
+  
+# from return
+km_df <- dfs_tidy$long %>%
+  filter(subset == "fromreturn" & trt.type == "expt")
+km_fit <- survfit(Surv(km_df$tt.exit, km_df$status) ~ trt.recover, data = km_df)
+
+ggsurvplot(fit = km_fit, data = km_df,
+           facet.by = "trt.duration") +
+  labs(caption = "from return") +
+    scale_color_hue(direction = -1)
+```
+
+
+## from return
 
 
 # surv props
@@ -200,6 +231,8 @@ dfs_tidy$widesim %>%
 ```
 
 # development
+
+(futzing around w this for 2026-02 LB)
 
 ## trajectories of cold ctrls
 
@@ -252,7 +285,6 @@ dfs_tidy$wide %>%
 
 ```{r}
 # note -- 2ndary versions below also sorta depend on these original ones lol
-
 .calcfn <- function(x){
   x %>%
     filter(!(trt.type == "expt" & jdate.2nd > jdate.return)) %>%
@@ -375,7 +407,9 @@ dfs_tidy$wide %>%
         shape = trt.to3rd) +
     facet_grid(#instar 
       ~ trt.recover) +
-    scale_color_hue(direction = -1)
+    scale_color_hue(direction = -1) +
+    labs(x = "recovery duration",
+         color = "recovery temp")
 }
 ```
 
@@ -398,18 +432,22 @@ dfs_tidy$wide %>%
   facet_grid(~ instar, scales = "free_x", drop = TRUE) +
   labs(caption = "(unparsed expt bugs)")
 
-# parsed out expt bugs that made it to 3rd
-dfs_tidy$wide %>%
-  .calcfn2() %>%
-  filter(trt.duration != 0, instar == "return") %>%
-  .plotfn2() +
-  scale_shape_manual(values = c(19, 1)) +
-  labs(caption= "mass at return")
-
+# parsed out if expt bugs made it to 3rd
 dfs_tidy$wide %>%
   .calcfn2() %>%
   filter(instar == "3rd") %>%
   .plotfn2() +
-  scale_shape_manual(values = c(19, 17, 2)) +
-  labs(caption = "mass at 3rd")
+  #idk this used to have 3 of them but also nonsensical if u think about it...
+  #scale_shape_manual(values = c(19, 17, 2)) + 
+  scale_shape_discrete(labels = c("ctrl", "expt")) +
+  labs(caption = "mass at 3rd",
+       shape = "treatment type")
+
+dfs_tidy$wide %>%
+  .calcfn2() %>%
+  filter(trt.duration != 0, instar == "return") %>%
+  .plotfn2() +
+  scale_shape_manual(values = c(17, 2), labels = c("yes", "no")) +
+  labs(caption = "mass at return",
+       shape = "survived to 3rd?")
 ```
