@@ -17,7 +17,7 @@ library(survminer)
 here::i_am("outputs/2026-02_LB/results.Rmd")
 library(here)
 
-source(here("_ntw/scripts/utils/wrangle.R"))
+source(here("utils/math.R"))
 source(here("_ntw/scripts/utils/analysis.R"))
 source(here("_ntw/scripts/utils/analysis-stats.R"))
 
@@ -85,7 +85,7 @@ dfs_ntw1 <- list(
     group_by(trt, trt.meanT, trt.flucT) %>%
     summarise(n.surv = sum(is.pup == 1),
               p.surv = n.surv/sum(is.pup %in% c(0, 1)),
-              se.surv = se.prop(p.surv, n.surv))
+              se.surv = seprop(p.surv, n.surv))
 )
 ```
 
@@ -199,7 +199,7 @@ dfs_ntw2 <- list(
               n2 = sum(is.pup %in% c(0, 1)),
               n.surv = sum(is.pup == 1, na.rm = TRUE),
               p.surv = n.surv/sum(is.pup %in% c(0, 1)),
-              se.surv = se.prop(p.surv, n.surv))
+              se.surv = seprop(p.surv, n.surv))
 )
 ```
 

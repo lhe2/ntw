@@ -1,10 +1,8 @@
 # tdt wrangle utils
 # 2026-01-09
 
-### SUMMARY STATS ###
-# se <- function(x){ 
-#   sd(na.omit(x))/sqrt(length(na.omit(x)))
-# }
+# load math
+source(here("utils/math.R"))
 
 # wrangling ----------------------------------------------------
 
