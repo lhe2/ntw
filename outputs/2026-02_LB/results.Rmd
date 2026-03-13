@@ -17,9 +17,9 @@ library(survminer)
 here::i_am("outputs/2026-02_LB/results.Rmd")
 library(here)
 
-source(here("utils/math.R"))
 source(here("_ntw/scripts/utils/analysis.R"))
 source(here("_ntw/scripts/utils/analysis-stats.R"))
+source(here("scripts/math_utils.R"))
 
 source(here("_tdt/scripts/utils/wrangle.R"))
 ```

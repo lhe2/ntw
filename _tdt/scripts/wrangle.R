@@ -2,7 +2,7 @@
 # 2026-01-09
 
 # load math
-source(here("utils/math.R"))
+source(here("scripts/math_utils.R"))
 
 # wrangling ----------------------------------------------------
 

@@ -25,8 +25,8 @@ library(tidyverse)
 library(survival) # for Surv 
 library(survminer) # for ggsurvplot
 
-source(here("_tdt/scripts/utils/wrangle.R"))
-source(here("_tdt/scripts/utils/analysis-viz.R"))
+source(here("_tdt/scripts/wrangle.R"))
+source(here("_tdt/scripts/analysis-viz_utils.R"))
 ```
 
 ```{r data prep}
