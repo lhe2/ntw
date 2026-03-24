@@ -73,7 +73,8 @@ CalcSurvProps <- function(df, ...){
       n.surv.ret24 = n.initial.ret48,
       n.surv.ret48 = n.initial.ret72,
       n.surv.ret72 = n.initial.ret96
-      ) #%>% 
+      ) %>%
+    ungroup()
     
   ## fix calcs in 40C @ 0h, if cols exist
     if(rlang::has_name(df, "trt.duration") & rlang::has_name(df, "trt.recover")){
@@ -108,7 +109,7 @@ CalcSurvProps <- function(df, ...){
     pivot_longer(#starts_with(c("n.", "p.", "P.")),
                  contains(c("surv", "died")), # = at the end of the timept
                  names_to = c(".value", "status"), names_sep = "\\."
-    ) #%>% View()
+    ) %>% #View()
     #mutate(timept = factor(timept, levels = c("enter", "rec", "ret0", "ret24", "ret48", "ret72"))) %>% View()
   
   ## omit "enter" and "rec" timepts for ctrls bc otherwise its a pita to get the math right lol
@@ -121,6 +122,8 @@ CalcSurvProps <- function(df, ...){
   #   filter(df, !(trt < 100 & timept %in% c("enter", "rec"))) %>%
   #     return()
   # } else return(df)
+    
+    ungroup()
   
 }
 
@@ -148,17 +151,16 @@ CalcDevSS <- function(wide_df){
     group_by(across(c(starts_with("trt"), instar))) %>%
     summarise(n = n(),
               #n = sum(!is.na(.)),
-              avg.mass = mean(mass, na.rm = TRUE),
-              se.mass = se(mass),
-              avg.logmass = mean(logmass, na.rm = TRUE),
-              se.logmass = se(logmass),
-              avg.tt = mean(tt, na.rm = TRUE),
-              se.tt = se(tt),
+              across(.cols = c(mass, logmass, tt),
+                     .fns = list(avg = ~ mean(.x, na.rm = TRUE),
+                                 se = se),
+                     .names = "{.fn}.{.col}")
               
               # TODO: breaking.. omit for now
               # # props dont work w cold ctrls (only) bc everyones alive lol
               # # also bc i think this needs to be done wide...
               # prop.surv = sum(status.3rd == 1)/n,
-              # se.surv = se.prop(prop.surv, n)
-    )
+              # se.surv = seprop(prop.surv, n)
+    ) %>%
+    ungroup()
 }

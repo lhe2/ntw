@@ -107,9 +107,10 @@ dfs_tidy <- list(
       ## assign cutoff 
       merge(dfs_import$noA %>%
               filter(trt.enter ==  40) %>%
-              group_by(cohort) %>%
-              summarise(max = max(dh.exit, na.rm = TRUE))) %>%
-      mutate(dh.max = case_when(fate == "culled" ~ max + 1,
+              group_by(cohort) %>% 
+              summarise(max = max(dh.exit, na.rm = TRUE))
+            ) %>%
+      mutate(dh.max = case_when(fate == "culled" ~ max + 24, # based off cohort B cutoff
                                 TRUE ~ dh.exit)) %>% 
       
       ## stdise times so t0 = enter
