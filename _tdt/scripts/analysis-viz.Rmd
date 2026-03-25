@@ -5,7 +5,7 @@ date: "2026-01-06"
 
 generate tdt viz
 
-TODO
+# TODO
 - before
   - import data
   - import utils
@@ -15,7 +15,7 @@ TODO
 
 # preamble
 
-```{r}
+```{r message=FALSE}
 # pathfinding
 here::i_am("_tdt/scripts/analysis-viz.Rmd")
 library(here)
@@ -29,7 +29,7 @@ source(here("_tdt/scripts/wrangle.R"))
 source(here("_tdt/scripts/analysis-viz_utils.R"))
 ```
 
-```{r data prep}
+```{r data prep, message=FALSE}
 # import data
 source(here("_tdt/scripts/R/tidy.R"))
 
@@ -42,6 +42,7 @@ dfs_tidy <- dfs_tidy %>% lapply(., \(x){
     mutate(across(starts_with("trt"), as.factor))
 })
 ```
+
 # ## kms/survival curves
 
 # kms ctrls
@@ -85,24 +86,39 @@ ggsurvplot(fit = km_fit, data = km_df,
 # kms exptal
 ## by rec temp
 ```{r}
-# from entering
+# from entering (drop cohort A)
 km_df <- dfs_tidy$long %>%
   filter(subset == "fromenter" & trt.enter == 40) # ohh this is where im hitting issues w the subsetting...
 km_fit <- survfit(Surv(km_df$tt.exit, km_df$status) ~ trt.recover, data = km_df)
 
 ggsurvplot(fit = km_fit, data = km_df,
-           #facet.by = "cohort"
+           #facet.by = "cohort",
            facet.by = "trt.duration"
            ) %++%
-  AddKMLines(km_df, dt.recover, 
+  AddKMLines(km_df, dt.enter, 
              trt.duration 
+             ) +
+  scale_color_manual(values = c("#002F70", "#3C6FC4", "#DE738B", "#8E063B")) +
+  labs(caption = "t0 = enter")
+
+
+# from entering (w/ cohort A)
+km_df <- dfs_tidy$longall %>%
+  filter(subset == "fromenter" & trt.enter == 40)
+km_fit <- survfit(Surv(km_df$tt.exit, km_df$status) ~ trt.recover, data = km_df)
+
+ggsurvplot(fit = km_fit, data = km_df,
+           facet.by = c("cohort", "trt.duration")
+           ) %++%
+  AddKMLines(km_df, dt.enter, 
+             cohort, trt.duration 
              ) +
   scale_color_manual(values = c("#002F70", "#3C6FC4", "#DE738B", "#8E063B")) +
   labs(caption = "t0 = enter")
 ```
 
 ```{r}
-# from return
+# from return (no cohort A)
 km_df <- dfs_tidy$long %>%
   filter(subset == "fromreturn" & trt.enter == 40) 
 km_fit <- survfit(Surv(km_df$tt.exit, km_df$status) ~ trt.recover, data = km_df)
@@ -113,6 +129,21 @@ ggsurvplot(fit = km_fit, data = km_df,
            ) %++%
   AddKMLines(km_df, dt.return, 
              trt.duration 
+             ) +
+  scale_color_manual(values = c("#002F70", "#3C6FC4", "#DE738B", "#8E063B")) +
+  labs(caption = "t0 = return to 40C")
+
+
+# from return (with cohort A)
+km_df <- dfs_tidy$longall %>%
+  filter(subset == "fromreturn" & trt.enter == 40) 
+km_fit <- survfit(Surv(km_df$tt.exit, km_df$status) ~ trt.recover, data = km_df)
+
+ggsurvplot(fit = km_fit, data = km_df,
+           facet.by = c("cohort", "trt.duration")
+           ) %++%
+  AddKMLines(km_df, dt.return, 
+             cohort, trt.duration 
              ) +
   scale_color_manual(values = c("#002F70", "#3C6FC4", "#DE738B", "#8E063B")) +
   labs(caption = "t0 = return to 40C")
@@ -140,7 +171,7 @@ ggsurvplot_facet(fit = km_fit, data = km_df,
 
 ## by rec dur
 ```{r}
-# effect of trt.duration
+# effect of trt.duration (without cohort A)
 km_df <- dfs_tidy$long %>%
   filter(subset == "fromenter" & trt.enter == 40)
 km_fit <- survfit(Surv(km_df$tt.exit, km_df$status) ~ trt.duration, data = km_df)
@@ -149,14 +180,30 @@ ggsurvplot(fit = km_fit, data = km_df,
            facet.by = "cohort"
            #facet.by = "trt.recover"
            ) %++%
-  AddKMLines(km_df, dt.recover, cohort
+  AddKMLines(km_df, dt.recover, 
+             cohort
+             )
+
+# (with cohort A)
+km_df <- dfs_tidy$longall %>%
+  filter(subset == "fromenter" & trt.enter == 40)
+km_fit <- survfit(Surv(km_df$tt.exit, km_df$status) ~ trt.duration, data = km_df)
+
+ggsurvplot(fit = km_fit, data = km_df,
+           facet.by = "cohort"
+           #facet.by = "trt.recover"
+           ) %++%
+  AddKMLines(km_df, dt.recover, 
+             cohort
              )
 ```
-## by cohort
+## cohort x duration
+
 ```{r}
 # effect of cohort
+  # (cohort A's 24/48h recovery isnt the same as B+C, so is omitted)
 km_df <- dfs_tidy$long %>%
-  filter(subset == "fromenter" & trt.enter == 40)
+  filter(subset == "fromenter" & trt.enter == 40) 
 km_fit <- survfit(Surv(km_df$tt.exit, km_df$status) ~ cohort, data = km_df)
 
 ggsurvplot(fit = km_fit, data = km_df,
@@ -165,11 +212,23 @@ ggsurvplot(fit = km_fit, data = km_df,
            ) %++%
   AddKMLines(km_df, dt.recover, trt.duration
              )
+
+# with cohort A
+km_df <- dfs_tidy$longall %>%
+  filter(subset == "fromreturn" & trt.enter == 40) 
+km_fit <- survfit(Surv(km_df$tt.exit, km_df$status) ~ cohort, data = km_df)
+
+ggsurvplot(fit = km_fit, data = km_df,
+           #facet.by = "trt.recover",
+           facet.by = "trt.duration"
+           ) %++%
+  AddKMLines(km_df, dt.return, trt.duration
+             ) +
+  labs(caption = "t0 = from return")
 ```
+# hot exptal only
 
-# ## development stuff
-
-# avg time to death
+## rec temp x duration
 
 (copied from from 2026-02 LB `results.Rmd`)
 
@@ -546,16 +605,18 @@ dfs$ss %>%
 ```
 
 
+
+
 # surv props
 
-## overall
+## overall (sim)
 - using simulated 40C data
 
-```{r}
+```{r eval=FALSE}
 # % bugs dying at each timept
 # (N gets reset to the current timept)
 dfs_tidy$widesim %>%
-  CalcSurvProps(., trt.recover, trt.duration) %>% View()
+  CalcSurvProps(., trt.recover, trt.duration) %>% #View()
   ggplot(aes(y = p, x = timept,
              fill = status)) +
   geom_col() +
@@ -576,7 +637,7 @@ dfs_tidy$widesim %>%
   labs(caption = "N = total bugs at enter")
 ```
 
-# development
+# ## LB futzing
 
 (futzing around w this for 2026-02 LB)
 
