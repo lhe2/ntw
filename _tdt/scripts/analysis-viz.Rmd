@@ -385,6 +385,165 @@ dfs$all %>%
        caption = "exposure before death; (initial hours exposure to 40C before recovering)")
 ```
 
+## diff from ctrl
+
+```{r}
+# some funky df prep
+  ## (note that avg.diff is the same whether doing:
+  ## avg.ttexit.expt - avg.ttexit.ctrl or
+  ## avg(tt.exit.expt - avg.ttexit.ctrl))
+
+test <- list(
+  # get avg.exit times of 40C ctrl groups per cohort
+  ctrls = dfs_tidy$wideall %>%
+    filter(trt == 40) %>%
+    mutate(grp = case_when(cohort == "A" ~ "A",
+                           cohort != "A" ~ "B + C"
+                           )) %>%
+    select(c(grp, starts_with("trt"), dt.exit)) %>% 
+    group_by(across(c(grp, starts_with("trt")))) %>%
+    summarise(avg.ttexit.ctrl = mean(dt.exit, na.rm = TRUE),
+              se.ttexit.ctrl = se(dt.exit)) %>%
+    ungroup()
+  )
+
+test <- list_modify(
+  test,
+  # individual survival time data for expt bugs
+  expt_counts = dfs_tidy$wideall %>%
+    filter(trt != 40,
+           trt.enter == 40,
+           fate == "died") %>%
+    mutate(grp = case_when(cohort == "A" ~ "A",
+                           cohort != "A" ~ "B + C"
+    )) %>%
+    merge(., test$ctrls %>% select(c(grp, avg.ttexit.ctrl, #se.ttexit.ctrl
+                                     )), 
+          by = "grp", 
+          all = TRUE) %>%
+    mutate(timeat40 = case_when(grp != "A" ~ dh.exit - dh.return + 24,
+                                grp == "A" ~ dh.exit - dh.return + 48,
+                                #trt == 40 ~ dh.exit - dh.enter
+                                ),
+           diff.fromctrl = case_when(trt != 40 ~ timeat40 - avg.ttexit.ctrl,
+                                     #TRUE ~ timeat40
+                                     ))
+  )
+
+test <- list_modify(
+  test,
+  expt_ss = test$expt_counts %>%
+    # mutate(grp = case_when(#trt == 40 ~ "ctrl",
+    #                        cohort == "A" ~ "A",
+    #                        cohort != "A" ~ "B + C"
+    #                        )) %>% 
+    group_by(across(c("grp", starts_with("trt")))) %>%
+    mutate(n = n(),
+           avg.diff = case_when(trt != 40 ~ mean(diff.fromctrl, na.rm = TRUE),
+                                #trt == 40 ~ avg.ttexit.ctrl
+                                ),
+           se.diff = case_when(trt != 40 ~ se(diff.fromctrl),
+                               #trt == 40 ~ se.ttexit.ctrl
+                               ),
+           # # dont need to do this LOL
+           # avg.ttexit.expt = case_when(trt != 40 ~ mean(timeat40, na.rm = TRUE)), 
+           #  # makes this "too" unique 
+           #  # (will lead to overplotting avg.ttexit.ctrl)
+           # diff.overall = case_when(trt != 40 ~ avg.ttexit.expt - avg.ttexit.ctrl,
+           #                          #trt == 40 ~ avg.ttexit.ctrl)
+                                    ) %>%
+    select(c(#cohort,
+             grp,
+             starts_with("trt"), n, 
+             contains(c("avg", "se"#, "overall"
+                        )), 
+             #-contains("ctrl")
+             )) %>%
+    unique()
+)
+
+# the ctrl points make no sense here LOL bc this should show the diff, not the raw!
+test$expt_ss %>%
+  #filter(grp != "ctrl") %>%
+  ggplot(aes(x = trt.recover, col = trt.duration,
+             y = avg.diff,
+             group = interaction(trt.duration#, cohort
+                                 ))) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymax = avg.diff + se.diff,
+                    ymin = avg.diff - se.diff), width = 0.25) +
+  facet_wrap(~ grp, labeller = as_labeller(c(`A` = "A (48h)", `B + C` = "B + C (24h)"))) +
+  labs(y = "")
+
+```
+
+```{r}
+# df prep
+dfs <- list(
+  counts = dfs_tidy$wide %>%
+    # get avg.exit times of ctrl groups per cohort
+    filter(trt == 40) %>%
+    select(c(cohort, dt.exit)) %>% 
+    group_by(cohort) %>%
+    summarise(avg.ttexit.ctrl = mean(dt.exit, na.rm = TRUE)) %>%
+    ungroup() %>%
+    
+    # merge w/ recovery bugs and calc diff
+    merge(., dfs_tidy$wide %>% filter(fate == "died",
+                                      trt != 40,
+                                      trt.enter == 40),
+          by = "cohort", all = TRUE) %>% 
+    mutate(#diff.fromctrl = dt.exit - avg.ttexit.ctrl, # NOTE i think this is wrong..
+           
+           # NOTE (i think this is also wrong)
+           timeat40 = case_when(trt.duration != 0 ~ dh.exit - dh.return + 24),
+           diff.fromctrl = timeat40 - avg.ttexit.ctrl, # = difference in total time at 40C 
+           ) %>%
+    filter(!is.na(diff.fromctrl))
+)
+
+dfs <- list_modify(
+  dfs,
+  ss = dfs$counts %>% 
+    group_by(across(c(starts_with("trt")))) %>%
+    summarise(n = n(),
+              avg.diff = mean(diff.fromctrl, na.rm = TRUE),
+              se.diff = se(diff.fromctrl)) %>%
+    ungroup()
+)
+
+
+# all data + avgs
+dfs$counts %>% 
+  ggplot(aes(x = trt.recover)) +
+  geom_point(aes(y = diff.fromctrl),
+             alpha = 0.5, size = 1) +
+  geom_point(data = dfs$ss, 
+             aes(y = avg.diff), color = "red") +
+  geom_errorbar(data = dfs$ss, 
+                aes(ymax = avg.diff + se.diff,
+                    ymin = avg.diff - se.diff),
+                width = 0.25, color = "red") +
+  facet_wrap(~trt.duration)
+
+# focus on the ss
+dfs$ss %>%
+  ggplot(aes(y = avg.diff, x = trt.recover, col = trt.duration,
+             group = trt.duration)) +
+  geom_point(size = 2) +
+  geom_line() +
+  geom_errorbar(aes(ymax = avg.diff + se.diff,
+                    ymin = avg.diff - se.diff),
+                width = 0.25) +
+  geom_hline(yintercept = 0, lty = "longdash", alpha = 0.5, show.legend = NA) +
+  geom_text(aes(label = n),
+            vjust = -1, 
+            hjust = -0.75, show.legend = FALSE) +
+  labs(y = "difference (h)",
+       captions = "(diff in total time at 40C vs ctrls)")
+  
+```
 
 
 # surv props
