@@ -14,7 +14,6 @@ final code is purled to a `.R` script, rerun `purl` step as needed to update the
   - import data, libs
   - make new columns, binaries, etc
   - cleanup
-  
 ```{r for purling, eval=FALSE, include=FALSE, purl=FALSE}
 here::i_am("_tdt/scripts/tidy.Rmd") # set wd
 
@@ -89,14 +88,14 @@ df_sim <- list(
              jdate.return = case_when(!is.na(dh.return) ~ jdate.enter + 3))
   ) %>%
   rbindlist()
-  
 ```
 
 ## recalc exit times
 
 ```{r}
 dfs_tidy <- list(
-  wide = dfs_import$noA,
+  wide = dfs_import$noA, # mostly use this data for analyses
+  wideall = dfs_import$all,
   widesim = df_sim
 ) %>%
   lapply(., \(x){
@@ -138,17 +137,23 @@ dfs_tidy <- list(
 ## calc expt exit times from rec/return/exit (for surv stats/viz) -- see xlxs
 dfs_tidy <- list_modify(
   dfs_tidy,
-  long =
-    dfs_tidy$wide %>%
-    mutate(tt.exit.fromenter = dt.exit - dt.enter,
-           tt.exit.fromrecover = dt.exit - dt.recover,
-           tt.exit.fromreturn = dt.exit - dt.return) %>%
-    pivot_longer(starts_with("tt.exit"),
-                 names_to = c(".value", "subset"),
-                 names_pattern = "(tt\\.exit)\\.([a-z]*)"
-                 ) %>% 
-    drop_na(tt.exit)
+  long = dfs_tidy$wide,
+  longall = dfs_tidy$wideall
 )
+
+dfs_tidy[4:5] <- dfs_tidy[4:5] %>%
+  lapply(., \(x) {
+    x %>%
+      mutate(tt.exit.fromenter = dt.exit - dt.enter,
+             tt.exit.fromrecover = dt.exit - dt.recover,
+             tt.exit.fromreturn = dt.exit - dt.return) %>%
+      pivot_longer(starts_with("tt.exit"),
+                   names_to = c(".value", "subset"),
+                   names_pattern = "(tt\\.exit)\\.([a-z]*)"
+      ) %>% 
+      drop_na(tt.exit)
+  } 
+  )
 ```
 
 # # export

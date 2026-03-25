@@ -173,7 +173,6 @@ ggsurvplot(fit = km_fit, data = km_df,
 
 (copied from from 2026-02 LB `results.Rmd`)
 
-## from enter
 ```{r}
 # from enter
 km_df <- dfs_tidy$long %>%
@@ -197,7 +196,195 @@ ggsurvplot(fit = km_fit, data = km_df,
 ```
 
 
-## from return
+# ## development stuff
+
+# times
+
+(from 2026-02 LB `results.Rmd`)
+
+```{r}
+dfs <- list(
+  noA = dfs_tidy$wide,
+  all = dfs_tidy$wideall %>%
+    mutate(grp = case_when(cohort == "A" ~ "A",
+                           TRUE ~ "B + C"))
+) %>%
+  lapply(., \(x){
+    x %>%
+      #filter(trt.duration %in% c(24, 48)) %>%
+      filter(fate == "died" & trt.enter == 40) %>%
+      mutate(exitfromreturn = dt.exit - dt.return,
+             timeat40 = case_when(trt.duration != 0 ~ exitfromreturn + 24, # oops
+                                  # cohort == "A" & trt.duration != 0 ~ exitfromreturn + 48,
+                                  # cohort != "A" & trt.duration != 0 ~ exitfromreturn + 24,
+                                  TRUE ~ exitfromreturn))
+  })
+
+dfs <- list_modify(
+  dfs,
+  noA = dfs$noA %>% group_by(across(starts_with("trt"))),
+  all = dfs$all %>% group_by(across(c(grp, starts_with("trt"))))
+) %>%
+  lapply(., \(x){
+    x %>%
+      summarise(avg.ttexit.ret = mean(exitfromreturn, na.rm = TRUE),
+                se.ttexit.ret = se(exitfromreturn),
+                avg.ttexit.ent = mean(dt.exit, na.rm = TRUE),
+                se.ttexit.ent = se(dt.exit),
+                avg.timeat40 = mean(timeat40, na.rm = TRUE),
+                se.timeat40 = se(timeat40)
+      ) %>%
+      ungroup()
+  })
+```
+## time to death from..
+
+```{r}
+# from enter
+.plotfn <- function(x){
+  x %>%
+    ggplot(aes(y = avg.ttexit.ent,
+               x = trt.recover)) +
+    geom_point(size = 2) +
+    geom_line() +
+    geom_errorbar(aes(ymax = avg.ttexit.ent + se.ttexit.ent,
+                      ymin = avg.ttexit.ent - se.ttexit.ent),
+                  width = 0.25, lty = "solid") +
+    labs(y = "time to death (h)",
+         x = "recovery temperature (°C)",
+         #caption = "from enter"
+         ) +
+    theme_bw()
+}
+
+## facet by duration
+dfs$noA %>%
+  .plotfn() +
+    facet_grid(~ trt.duration, scales = "free_x", space = "free_x")
+
+## not faceted
+dfs$noA %>%
+  .plotfn() +
+  aes(lty = trt.duration, shape = trt.duration, color = trt.duration,
+      group = trt.duration) +
+  labs(lty = "recovery\nduration (h)",
+       shape = "recovery\nduration (h)",
+       color = "recovery\nduration (h)",
+       caption = "from entering")
+
+## facet by grp
+dfs$all %>%
+  .plotfn() +
+  aes(lty = trt.duration, shape = trt.duration, color = trt.duration,
+      group = trt.duration) +
+  facet_wrap(~ grp, labeller = as_labeller(c(`A` = "A (48h)", `B + C` = "B + C (24h)"))) +
+  labs(lty = "recovery\nduration (h)",
+       shape = "recovery\nduration (h)",
+       color = "recovery\nduration (h)",
+       caption = "from entering; (initial hours exposure to 40C before recovering)")
+```
+
+```{r}
+# from return
+.plotfn <- function(x){
+  x %>%
+    ggplot(aes(y = avg.ttexit.ret,
+               x = trt.recover)) +
+    geom_point(size = 2) +
+    geom_line() +
+    geom_errorbar(aes(ymax = avg.ttexit.ret + se.ttexit.ret,
+                      ymin = avg.ttexit.ret - se.ttexit.ret),
+                  width = 0.25, lty = "solid") +
+    labs(y = "time to death (h)",
+         x = "recovery temperature (°C)",
+         caption = "from return"
+         ) +
+    theme_bw()
+}
+
+## facet by duration
+dfs$noA %>%
+  .plotfn() +
+    facet_grid(~ trt.duration, scales = "free_x", space = "free_x")
+
+dfs$noA %>%
+  .plotfn() +
+  aes(lty = trt.duration, shape = trt.duration, color = trt.duration,
+      group = trt.duration) +
+  facet_grid(~ trt.type, scales = "free_x", space = "free_x",
+             labeller = as_labeller(c(`ctrl` = "40°C constant",
+                                      `expt` = "40°C + recovery"))) +
+  labs(lty = "recovery\nduration (h)",
+       shape = "recovery\nduration (h)",
+       color = "recovery\nduration (h)")
+
+## not faceted
+dfs$noA %>%
+  .plotfn() +
+  aes(lty = trt.duration, shape = trt.duration, color = trt.duration,
+      group = trt.duration) +
+  labs(lty = "recovery\nduration (h)",
+       shape = "recovery\nduration (h)",
+       color = "recovery\nduration (h)")
+
+## facet by grp
+dfs$all %>%
+  .plotfn() +
+  aes(lty = trt.duration, shape = trt.duration, color = trt.duration,
+      group = trt.duration) +
+  facet_wrap(~ grp, labeller = as_labeller(c(`A` = "A (48h)", `B + C` = "B + C (24h)"))) +
+  labs(lty = "recovery\nduration (h)",
+       shape = "recovery\nduration (h)",
+       color = "recovery\nduration (h)",
+       caption = "from return; (initial hours exposure to 40C before recovering)")
+```
+
+## time at 40C
+```{r}
+.plotfn <- function(x){
+  x %>%
+    ggplot(aes(y = avg.timeat40,
+               x = trt.recover)) +
+    geom_point(size = 2) +
+    geom_line() +
+    geom_errorbar(aes(ymax = avg.timeat40 + se.timeat40,
+                      ymin = avg.timeat40 - se.timeat40),
+                  width = 0.25, lty = "solid") +
+    labs(y = "total exposure to 40°C (h)",
+         x = "recovery temperature (°C)",
+         caption = "until death"
+         ) +
+    theme_bw()
+}
+
+## facet by duration
+dfs$noA %>%
+  .plotfn() +
+    facet_grid(~ trt.duration, scales = "free_x", space = "free_x")
+
+dfs$noA %>%
+  .plotfn() +
+  aes(lty = trt.duration, shape = trt.duration, color = trt.duration,
+      group = trt.duration) +
+  facet_grid(~ trt.type, scales = "free_x", space = "free_x",
+             labeller = as_labeller(c(`ctrl` = "40°C constant",
+                                      `expt` = "40°C + recovery"))) +
+  labs(lty = "recovery\nduration (h)",
+       shape = "recovery\nduration (h)",
+       color = "recovery\nduration (h)")
+
+## facet by grp
+dfs$all %>%
+  .plotfn() +
+  aes(lty = trt.duration, shape = trt.duration, color = trt.duration,
+      group = trt.duration) +
+  facet_wrap(~ grp, labeller = as_labeller(c(`A` = "A (48h)", `B + C` = "B + C (24h)"))) +
+  labs(lty = "recovery\nduration (h)",
+       shape = "recovery\nduration (h)",
+       color = "recovery\nduration (h)",
+       caption = "exposure before death; (initial hours exposure to 40C before recovering)")
+```
+
 
 
 # surv props
