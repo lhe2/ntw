@@ -19,6 +19,8 @@ AddKMLines <- function(df, t0, ...){
   #grp <- !!!rlang::ensyms(...) # TODO: figure out how this works lol
   #grp <- rlang::ensyms(...)
   
+  ### calc vertical lines ###
+  
   if(!missing(t0)){
     # & !is.na(t0) sorta works as a bypass if forcing t0=NA to define grouping vars
     df <- df %>%
@@ -37,9 +39,13 @@ AddKMLines <- function(df, t0, ...){
   
   #return(df) # troubleshooting
   
-  # plot
+  ### plot ###
   
-  grp <- rlang::enquos(...)
+  if(missing(...)){
+    grp <- NA
+  } else {
+    grp <- rlang::enquos(...)
+  }
   
   return(
     list(geom_vline(data = df, aes(xintercept = dt.recover,

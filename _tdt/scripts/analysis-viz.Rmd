@@ -47,12 +47,11 @@ dfs_tidy <- dfs_tidy %>% lapply(., \(x){
 
 # ctrls
 
-## by rec temp
+## cohort x rec temp
 results
 - no major diffs in KMs for 40 ctrls across cohorts
 
 ```{r}
-# by trt
 km_df <- dfs_tidy$long %>%
   filter(subset == "fromenter" & trt.duration == 0)
 km_fit <- survfit(Surv(km_df$tt.exit, km_df$status) ~ trt.recover, data = km_df)
@@ -65,7 +64,7 @@ ggsurvplot(fit = km_fit, data = km_df,
   labs(caption = "rec duration = 0h")
 ```
 
-## by cohort
+## cohort
 ```{r}
 # by cohort
 km_df <- dfs_tidy$long %>%
@@ -85,7 +84,7 @@ ggsurvplot(fit = km_fit, data = km_df,
 
 # exptal
 
-## by rec temp
+## rec temp x rec dur
 ```{r}
 # from entering (drop cohort A)
 km_df <- dfs_tidy$long %>%
@@ -164,13 +163,11 @@ ggsurvplot_facet(fit = km_fit, data = km_df,
   AddKMLines(df = filter(km_df, subset == "fromreturn"), dt.return, trt.duration, subset) +
   scale_color_manual(values = c("#002F70", "#3C6FC4", "#DE738B", "#8E063B")) +
   labs(caption = "(varying t0)")
-
-
 ```
 
 
 
-## by rec dur
+## cohort x rec dur
 ```{r}
 # TODO testing
 .test_AddKMLines <- function(){
@@ -203,10 +200,7 @@ ggsurvplot_facet(fit = km_fit, data = km_df,
     )
   )
 }
-```
 
-
-```{r}
 # TOFIX AddKMLines() shows all lines for all cohorts...
 
 # effect of trt.duration (without cohort A)
@@ -231,7 +225,7 @@ ggsurvplot(fit = km_fit, data = km_df,
            facet.by = "cohort"
            #facet.by = "trt.recover"
            ) %++%
-  AddKMLines(km_df, dt.recover,
+  AddKMLines(km_df, dt.recover, # NOTE can filter this...
              cohort
              ) #%++%
   #.test_AddKMLines()
@@ -297,7 +291,8 @@ ggsurvplot(fit = km_fit, data = km_df,
 
 # # duration/times (WIP!!!)
 
-(from 2026-02 LB `results.Rmd`)
+(orig from 2026-02 LB `results.Rmd`)
+
 ## df prep
 ```{r}
 dfs <- list(
@@ -309,10 +304,9 @@ dfs <- list(
       #filter(trt.duration %in% c(24, 48)) %>%
       filter(fate == "died" & trt.enter == 40) %>%
       mutate(exitfromreturn = dt.exit - dt.return,
-             timeat40 = case_when(trt.duration != 0 ~ exitfromreturn + 24, # oops
-                                  # cohort == "A" & trt.duration != 0 ~ exitfromreturn + 48,
-                                  # cohort != "A" & trt.duration != 0 ~ exitfromreturn + 24,
-                                  TRUE ~ exitfromreturn))
+             timeat40 = case_when(trt == 40 ~ dt.exit,
+                                  trt.duration != 0 & cohort == "A" ~ exitfromreturn + 48,
+                                  trt.duration != 0 & cohort != "A" ~ exitfromreturn + 24))
   })
 
 dfs <- list_modify(
@@ -333,10 +327,10 @@ dfs <- list_modify(
   })
 ```
 
-## time to death from..
+## time to death vs rec temp/dur
 
+### from enter
 ```{r}
-# from enter
 .plotfn <- function(x){
   x %>%
     ggplot(aes(y = avg.ttexit.ent,
@@ -366,22 +360,23 @@ dfs$noA %>%
   labs(lty = "recovery\nduration (h)",
        shape = "recovery\nduration (h)",
        color = "recovery\nduration (h)",
-       caption = "from entering")
+       caption = "cohort B+C; from entering")
 
 ## facet by grp
 dfs$all %>%
   .plotfn() +
   aes(lty = trt.duration, shape = trt.duration, color = trt.duration,
       group = trt.duration) +
-  facet_wrap(~ grp, labeller = as_labeller(c(`A` = "A (48h)", `B+C` = "B + C (24h)"))) +
+  facet_wrap(~ grp, labeller = as_labeller(c(`A` = "cohort A (48h)", 
+                                             `B+C` = "cohort B + C (24h)"))) +
   labs(lty = "recovery\nduration (h)",
        shape = "recovery\nduration (h)",
        color = "recovery\nduration (h)",
-       caption = "from entering; (initial hours exposure to 40C before recovering)")
+       caption = "from entering;\n(initial hours exposure to 40C before recovering)")
 ```
 
+### from return
 ```{r}
-# from return
 .plotfn <- function(x){
   x %>%
     ggplot(aes(y = avg.ttexit.ret,
@@ -393,7 +388,10 @@ dfs$all %>%
                   width = 0.25, lty = "solid") +
     labs(y = "time to death (h)",
          x = "recovery temperature (°C)",
-         caption = "from return"
+         caption = "cohort B+C; from return",
+         lty = "recovery\nduration (h)",
+         shape = "recovery\nduration (h)",
+         color = "recovery\nduration (h)"
          ) +
     theme_bw()
 }
@@ -409,36 +407,30 @@ dfs$noA %>%
       group = trt.duration) +
   facet_grid(~ trt.type, scales = "free_x", space = "free_x",
              labeller = as_labeller(c(`ctrl` = "40°C constant",
-                                      `expt` = "40°C + recovery"))) +
-  labs(lty = "recovery\nduration (h)",
-       shape = "recovery\nduration (h)",
-       color = "recovery\nduration (h)")
+                                      `expt` = "40°C + recovery")))
 
 ## not faceted
 dfs$noA %>%
   .plotfn() +
   aes(lty = trt.duration, shape = trt.duration, color = trt.duration,
-      group = trt.duration) +
-  labs(lty = "recovery\nduration (h)",
-       shape = "recovery\nduration (h)",
-       color = "recovery\nduration (h)")
+      group = trt.duration)
 
 ## facet by grp
 dfs$all %>%
   .plotfn() +
   aes(lty = trt.duration, shape = trt.duration, color = trt.duration,
       group = trt.duration) +
-  facet_wrap(~ grp, labeller = as_labeller(c(`A` = "A (48h)", `B+C` = "B + C (24h)"))) +
-  labs(lty = "recovery\nduration (h)",
-       shape = "recovery\nduration (h)",
-       color = "recovery\nduration (h)",
-       caption = "from return; (initial hours exposure to 40C before recovering)")
+  facet_wrap(~ grp, labeller = as_labeller(c(`A` = "cohort A (48h)", 
+                                             `B+C` = "cohort B + C (24h)"))) +
+  labs(caption = "from return;\n(initial hours exposure to 40C before recovering)")
 ```
 
-## time at 40C
-```{r}
-# rec temp vs exposure
+## time at 40C vs exposure (TODO/WIP)
 
+- WIP!!! cant ducking do math) 
+- maybe only compare to the bugs that survived after the initial 24h?
+
+```{r}
 .plotfn <- function(x){
   x %>%
     ggplot(aes(y = avg.timeat40,
@@ -483,17 +475,17 @@ dfs$all %>%
        caption = "exposure before death; (initial hours exposure to 40C before recovering)")
 ```
 
-## diff from ctrl (WIP!!!)
+## exit time diff from ctrl (WIP!!!)
 
-### df prep
 
 ```{r}
+# try 1: just trying stuff out... (figuring out how to do the math)
 # some funky df prep
   ## (note that avg.diff is the same whether doing:
   ## avg.ttexit.expt - avg.ttexit.ctrl or
   ## avg(tt.exit.expt - avg.ttexit.ctrl))
 
-test <- list(
+dfs <- list(
   # get avg.exit times of 40C ctrl groups per cohort
   ctrls = dfs_tidy$wideall %>%
     filter(trt == 40) %>%
@@ -504,14 +496,14 @@ test <- list(
     ungroup()
   )
 
-test <- list_modify(
-  test,
+dfs <- list_modify(
+  dfs,
   # individual survival time data for expt bugs
   expt_counts = dfs_tidy$wideall %>%
     filter(trt != 40,
            trt.enter == 40,
            fate == "died") %>%
-    merge(., test$ctrls %>% select(c(grp, avg.ttexit.ctrl, #se.ttexit.ctrl
+    merge(., dfs$ctrls %>% select(c(grp, avg.ttexit.ctrl, #se.ttexit.ctrl
                                      )), 
           by = "grp", 
           all = TRUE) %>%
@@ -524,9 +516,9 @@ test <- list_modify(
                                      ))
   )
 
-test <- list_modify(
-  test,
-  expt_ss = test$expt_counts %>%
+dfs <- list_modify(
+  dfs,
+  expt_ss = dfs$expt_counts %>%
     # mutate(grp = case_when(#trt == 40 ~ "ctrl",
     #                        cohort == "A" ~ "A",
     #                        cohort != "A" ~ "B+C"
@@ -556,8 +548,9 @@ test <- list_modify(
     unique()
 )
 
-# the ctrl points make no sense here LOL bc this should show the diff, not the raw!
-test$expt_ss %>%
+# plot
+  # the ctrl points make no sense here LOL bc this should show the diff, not the raw!
+dfs$expt_ss %>%
   #filter(grp != "ctrl") %>%
   ggplot(aes(x = trt.recover, col = trt.duration,
              y = avg.diff,
@@ -567,12 +560,13 @@ test$expt_ss %>%
   geom_line() +
   geom_errorbar(aes(ymax = avg.diff + se.diff,
                     ymin = avg.diff - se.diff), width = 0.25) +
-  facet_wrap(~ grp, labeller = as_labeller(c(`A` = "A (48h)", `B+C` = "B + C (24h)"))) +
-  labs(y = "")
+  facet_wrap(~ grp, labeller = as_labeller(c(`A` = "A (48h)", `B+C` = "B + C (24h)")))
 
 ```
 
 ```{r}
+# try 2: compare individs vs avgs; trying out other ways to do math
+
 # df prep
 dfs <- list(
   counts = dfs_tidy$wide %>%
