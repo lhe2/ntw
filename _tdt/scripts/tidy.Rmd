@@ -37,18 +37,18 @@ library(here)
 ```
 
 ```{r loading}
-# drop bugs with unknown fates
+# drop bugs with unknown fates (i.e. got lost)
 # separate cohort A expt bugs from the rest bc they had 48h initial exposure
 dfs_import <- list(
   all = read.csv(here("_tdt/data/clean/dev.csv"), header = TRUE),
-  cohortA = read.csv(here("_tdt/data/clean/dev.csv"), header = TRUE) %>% filter(cohort == "A"),
+  # cohortA = read.csv(here("_tdt/data/clean/dev.csv"), header = TRUE) %>% filter(cohort == "A"),
   noA = read.csv(here("_tdt/data/clean/dev.csv"), header = TRUE) %>% filter(!(cohort == "A" & trt.duration > 0))
   ) %>%
   lapply(., \(x){
     filter(x, !is.na(fate))
   })
 
-# NTS: only using "noA" going forward, but add in the others if needed
+# NOTE: only using "noA" going forward, but add in the others if needed
 ```
 
 
@@ -69,7 +69,11 @@ more calcs
 
 ## simulate 40 ctrls
 
+- simulate 24 and 48h "trt.duration" data for the 40C ctrls (which only have trt.dur = 0) 
+
 ```{r}
+# units: dh = decimal hrs; jdate = days
+
 df_sim <- list(
     dfs_import$noA,
     dfs_import$noA %>% 
@@ -90,9 +94,15 @@ df_sim <- list(
   rbindlist()
 ```
 
-## recalc exit times
+## calc stdising
+
+- recalc exit times (stdise so t0 = enter)
+- recode km `status` to match package
+
 
 ```{r}
+# stdising: times to entering + fates
+
 dfs_tidy <- list(
   wide = dfs_import$noA, # mostly use this data for analyses
   wideall = dfs_import$all,
@@ -103,9 +113,9 @@ dfs_tidy <- list(
       # select(c("trt.enter", "cohort", "id", "fate", "trt.duration",
       #          ends_with(c("hatch", "enter", "recover", "return", "exit", "died", "culled")))) %>%
       
-      ## assign cutoff 
+      ## assign exit time cutoff for culled bugs
       merge(dfs_import$noA %>%
-              filter(trt.enter ==  40) %>%
+              filter(trt.enter == 40) %>%
               group_by(cohort) %>% 
               summarise(max = max(dh.exit, na.rm = TRUE))
             ) %>%
@@ -113,6 +123,7 @@ dfs_tidy <- list(
                                 TRUE ~ dh.exit)) %>% 
       
       ## stdise times so t0 = enter
+      ## (these are absolute timepts)
       mutate(dt.enter = dh.enter - dh.enter,
              dt.recover = dh.recover - dh.enter,
              dt.return = dh.return - dh.enter,
@@ -133,20 +144,55 @@ dfs_tidy <- list(
 #   View()
 ```
 
+## extra calcs
+
+- times to exit
+- total time at 40C
+
 ```{r}
-## calc expt exit times from rec/return/exit (for surv stats/viz) -- see xlxs
+## extra calcs 
+
+dfs_tidy[1:2] <- dfs_tidy[1:2] %>% # for the non-sim data only
+  lapply(., \(x) {
+    x %>% mutate(
+      # timeframes for stats
+      tt.exit.fromenter = dt.exit - dt.enter,
+      tt.exit.fromrecover = dt.exit - dt.recover,
+      tt.exit.fromreturn = dt.exit - dt.return,
+      
+      # total time at 40C
+      tt.timeat40 = case_when(trt == 40 ~ tt.exit.fromenter,
+                              trt.duration != 0 & trt.enter == 40 ~ 
+                                tt.exit.fromreturn + trt.exposure
+                              # trt.duration != 0 & trt.enter == 40 & cohort == "A" ~
+                              #   tt.exit.fromreturn + 48,
+                              # trt.duration != 0 & trt.enter == 40 & cohort != "A" ~
+                              #   tt.exit.fromreturn + 24
+      ),
+      # NOTE maybe can omit this anyway bc this is sort of taken care of by `trt.exposure`?
+      # (not entirely tho bc 40C doesnt get anything.)
+      grp = case_when(cohort == "A" ~ "A",
+                      TRUE ~ "B+C")
+      
+    )
+  })
+```
+
+# # export
+
+## pivot to long
+
+```{r}
 dfs_tidy <- list_modify(
   dfs_tidy,
   long = dfs_tidy$wide,
   longall = dfs_tidy$wideall
 )
 
-dfs_tidy[4:5] <- dfs_tidy[4:5] %>%
+dfs_tidy[4:5] <- dfs_tidy[4:5] %>% 
   lapply(., \(x) {
     x %>%
-      mutate(tt.exit.fromenter = dt.exit - dt.enter,
-             tt.exit.fromrecover = dt.exit - dt.recover,
-             tt.exit.fromreturn = dt.exit - dt.return) %>%
+      # make subsettable by timeframe (from enter/recover/return)
       pivot_longer(starts_with("tt.exit"),
                    names_to = c(".value", "subset"),
                    names_pattern = "(tt\\.exit)\\.([a-z]*)"
@@ -156,7 +202,7 @@ dfs_tidy[4:5] <- dfs_tidy[4:5] %>%
   )
 ```
 
-# # export
+
 
 ## cleanup
 ```{r cleanup}

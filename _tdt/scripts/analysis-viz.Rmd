@@ -264,9 +264,7 @@ ggsurvplot(fit = km_fit, data = km_df,
 ```{r}
 dfs <- list(
   noA = dfs_tidy$wide,
-  all = dfs_tidy$wideall %>%
-    mutate(grp = case_when(cohort == "A" ~ "A",
-                           TRUE ~ "B + C"))
+  all = dfs_tidy$wideall
 ) %>%
   lapply(., \(x){
     x %>%
@@ -336,7 +334,7 @@ dfs$all %>%
   .plotfn() +
   aes(lty = trt.duration, shape = trt.duration, color = trt.duration,
       group = trt.duration) +
-  facet_wrap(~ grp, labeller = as_labeller(c(`A` = "A (48h)", `B + C` = "B + C (24h)"))) +
+  facet_wrap(~ grp, labeller = as_labeller(c(`A` = "A (48h)", `B+C` = "B + C (24h)"))) +
   labs(lty = "recovery\nduration (h)",
        shape = "recovery\nduration (h)",
        color = "recovery\nduration (h)",
@@ -391,7 +389,7 @@ dfs$all %>%
   .plotfn() +
   aes(lty = trt.duration, shape = trt.duration, color = trt.duration,
       group = trt.duration) +
-  facet_wrap(~ grp, labeller = as_labeller(c(`A` = "A (48h)", `B + C` = "B + C (24h)"))) +
+  facet_wrap(~ grp, labeller = as_labeller(c(`A` = "A (48h)", `B+C` = "B + C (24h)"))) +
   labs(lty = "recovery\nduration (h)",
        shape = "recovery\nduration (h)",
        color = "recovery\nduration (h)",
@@ -437,7 +435,7 @@ dfs$all %>%
   .plotfn() +
   aes(lty = trt.duration, shape = trt.duration, color = trt.duration,
       group = trt.duration) +
-  facet_wrap(~ grp, labeller = as_labeller(c(`A` = "A (48h)", `B + C` = "B + C (24h)"))) +
+  facet_wrap(~ grp, labeller = as_labeller(c(`A` = "A (48h)", `B+C` = "B + C (24h)"))) +
   labs(lty = "recovery\nduration (h)",
        shape = "recovery\nduration (h)",
        color = "recovery\nduration (h)",
@@ -456,9 +454,6 @@ test <- list(
   # get avg.exit times of 40C ctrl groups per cohort
   ctrls = dfs_tidy$wideall %>%
     filter(trt == 40) %>%
-    mutate(grp = case_when(cohort == "A" ~ "A",
-                           cohort != "A" ~ "B + C"
-                           )) %>%
     select(c(grp, starts_with("trt"), dt.exit)) %>% 
     group_by(across(c(grp, starts_with("trt")))) %>%
     summarise(avg.ttexit.ctrl = mean(dt.exit, na.rm = TRUE),
@@ -473,9 +468,6 @@ test <- list_modify(
     filter(trt != 40,
            trt.enter == 40,
            fate == "died") %>%
-    mutate(grp = case_when(cohort == "A" ~ "A",
-                           cohort != "A" ~ "B + C"
-    )) %>%
     merge(., test$ctrls %>% select(c(grp, avg.ttexit.ctrl, #se.ttexit.ctrl
                                      )), 
           by = "grp", 
@@ -494,7 +486,7 @@ test <- list_modify(
   expt_ss = test$expt_counts %>%
     # mutate(grp = case_when(#trt == 40 ~ "ctrl",
     #                        cohort == "A" ~ "A",
-    #                        cohort != "A" ~ "B + C"
+    #                        cohort != "A" ~ "B+C"
     #                        )) %>% 
     group_by(across(c("grp", starts_with("trt")))) %>%
     mutate(n = n(),
@@ -532,7 +524,7 @@ test$expt_ss %>%
   geom_line() +
   geom_errorbar(aes(ymax = avg.diff + se.diff,
                     ymin = avg.diff - se.diff), width = 0.25) +
-  facet_wrap(~ grp, labeller = as_labeller(c(`A` = "A (48h)", `B + C` = "B + C (24h)"))) +
+  facet_wrap(~ grp, labeller = as_labeller(c(`A` = "A (48h)", `B+C` = "B + C (24h)"))) +
   labs(y = "")
 
 ```

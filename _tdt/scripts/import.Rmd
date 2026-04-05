@@ -5,6 +5,9 @@ date: "2026-01-07"
 
 # preamble
 
+rerun in entirety when need to update the data sheets!!
+
+LAST RUN: 2026-03-30
 
 ## roadmap
 
@@ -71,12 +74,15 @@ dates/times:
 - parse culled vs died better: (things with `.culled` should be empty in `.died` and vice versa)
 - add return/recovery dates/times to 0hr recovery bugs
 
-fix `instar.exit`
+fix `instar.exit` (not calc'd right on from gsheets)
 
 fix `fate`? (based on their expected deaths at 40C trts and survival at other trts)
   - 0 = died
   - 1 = surved to 4th (if expt, which none did) or to 3rd (slow ctrls were culled at 3rd)
   - 2 = culled (i.e. died before 1 or 2; usually disease, for the most part)
+  
+add `trt.exposure` to separate cohort A + B/C bugs
+- cohort A = 48h initial exposure before recovery; B/C = 24h initial exposure
 
 ```{r fixes}
 df_filtered <- df_raw %>%
@@ -95,9 +101,11 @@ df_filtered <- df_raw %>%
   
   ## add missing dates & times for 0h recovery bugs
   mutate(across(c("date.recover", "date.return"), 
-                ~ case_when(trt.duration == 0 ~ date.enter, TRUE ~ .)),
+                ~ case_when(trt.duration == 0 ~ date.enter, 
+                            TRUE ~ .)),
          across(c("time.recover", "time.return"), 
-                ~ case_when(trt.duration == 0 ~ time.enter, TRUE ~ .))) %>%
+                ~ case_when(trt.duration == 0 ~ time.enter, 
+                            TRUE ~ .))) %>%
   
   ## better parsing of culled vs died
     ## "pmc" if culled before expected endpt; "culled" if culled after reaching endpt
@@ -108,7 +116,8 @@ df_filtered <- df_raw %>%
                                  TRUE ~ date.culled),
          
          ## "pmd" if cold ctrl bugs died early
-         date.pmd = case_when(trt %in% c(19, 26, 33) & !is.na(date.died) & is.na(date.4th) ~ date.died),
+         date.pmd = case_when(trt %in% c(19, 26, 33) & 
+                                !is.na(date.died) & is.na(date.4th) ~ date.died),
          date.died = case_when(!is.na(date.pmd) ~ NA_character_,
                                TRUE ~ date.died),
          
@@ -145,8 +154,13 @@ df_filtered <- df_raw %>%
          #                  !is.na(date.culled) | 
          #                    (trt <= 33 & !is.na(date.4th)) ~ "1", # catch straggler ctrls
          #                  !is.na(date.died) ~ "0")
-         )
-
+         ) %>%
+  
+  ## add in `trt.exposure`
+  mutate(trt.exposure = case_when(#trt.enter == 40 & trt.duration == 0 ~ "0",
+                                  cohort == "A" & trt.duration != 0 ~ "48",
+                                  cohort != "A" & trt.duration != 0 ~ "24"),
+         .after = "trt.enter")
 ```
 
 ## - stdise cols & times
@@ -184,9 +198,8 @@ df_cleaned <- df_filtered %>%
                 ~ case_when(!is.na(.) & . != time.enter ~ time.enter,
                             TRUE ~ .))) %>% 
   
-  # create date-time objs to calc decimal days
-  mutate(
-         dh.hatch = paste(date.hatch, time.hatch),
+  # create date-time objs
+  mutate(dh.hatch = paste(date.hatch, time.hatch),
          dh.enter = paste(date.enter, time.enter),
          dh.recover = paste(date.recover, time.recover),
          dh.return = paste(date.return, time.return),
@@ -210,10 +223,10 @@ df_cleaned <- df_filtered %>%
          #across(starts_with("dh."), as.numeric), # seconds
          #across(starts_with("dh."), ~ as.numeric(.)/(60*60*24)) # hours
          across(starts_with("dh."),
-                ~ (yday(.)*24 + hour(.) + minute(.)/60))
+                ~ (yday(.)*24 + hour(.) + minute(.)/60)) # decimal hrs
          ) %>%
   rename_with(., ~paste0("j", .), starts_with("date.")) %>% # days
-  mutate(across(c(trt, trt.enter, trt.recover, trt.duration, #fate,
+  mutate(across(c(trt, trt.enter, trt.recover, trt.duration, trt.exposure, #fate,
                   id, instar.exit, starts_with(c("mass", "jdate"))), as.numeric))
 ```
 
@@ -235,5 +248,5 @@ df_cleaned %>%
 
 ```{r}
 # clean up
-rm(df_raw, df_filtered, df_cleaned, export, today)
+rm(df_raw, df_filtered, df_cleaned, today)
 ```
