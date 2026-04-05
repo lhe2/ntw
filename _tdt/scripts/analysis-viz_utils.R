@@ -16,6 +16,9 @@
 #'         
 
 AddKMLines <- function(df, t0, ...){
+  #grp <- !!!rlang::ensyms(...) # TODO: figure out how this works lol
+  #grp <- rlang::ensyms(...)
+  
   if(!missing(t0)){
     # & !is.na(t0) sorta works as a bypass if forcing t0=NA to define grouping vars
     df <- df %>%
@@ -35,12 +38,24 @@ AddKMLines <- function(df, t0, ...){
   #return(df) # troubleshooting
   
   # plot
+  
+  grp <- rlang::enquos(...)
+  
   return(
-    list(geom_vline(data = df, aes(xintercept = dt.recover), 
+    list(geom_vline(data = df, aes(xintercept = dt.recover,
+                                   #group = !!!grp
+                                   ), 
                     color = "skyblue", lty = "dashed"),
-         geom_vline(data = df, aes(xintercept = dt.return), color = "orange"),
-         geom_vline(data = df, aes(xintercept = dt.enter), color = "red")
+         geom_vline(data = df, aes(xintercept = dt.return, 
+                                   group = interaction(!!!grp), # TODO still doesnt work as intended
+                                   #group = !!!grp
+                                   ), color = "orange"),
+         geom_vline(data = df, aes(xintercept = dt.enter,
+                                   #group = !!!grp
+                                   ), color = "red")
     )
+    
+    # TODO/TOFIX would be nice when faceting by cohort to somehow make distinct
+    # the lines for trt.dur = 24/48 (otherwise theres multiple return lines)
   )
 }
-

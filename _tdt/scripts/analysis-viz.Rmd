@@ -171,6 +171,43 @@ ggsurvplot_facet(fit = km_fit, data = km_df,
 
 ## by rec dur
 ```{r}
+# TODO testing
+.test_AddKMLines <- function(){
+  df <- dfs_tidy$longall %>%
+    filter(subset == "fromenter" & trt.enter == 40) %>%
+    group_by(cohort) %>%
+    summarise(dt.enter, dt.recover, dt.return) %>%
+    drop_na() %>% unique() %>%
+    mutate(across(starts_with("dt."), ~ . - dt.recover),
+           across(starts_with("dt."), ~ replace(.x, which(.x <0), NA))) %>%
+    unique() %>%
+    
+    pivot_longer(starts_with("dt"),
+                 names_to = "from", names_prefix = "dt\\.",
+                 values_to = "x") %>% 
+    mutate(col = case_when(from == "recover" ~ "skyblue",
+                           from == "return" ~ "orange",
+                           from == "enter" ~ "red"),
+           lty = case_when(from == "recover" ~ "dashed",
+                           from == "return" ~ "solid",
+                           from == "enter" ~ "solid"))
+  
+  return(
+    list(geom_vline(data = df,
+                    aes(xintercept = x,
+                        # lty = lty,
+                        # col = col,
+                        group = cohort),
+                    show.legend = FALSE)
+    )
+  )
+}
+```
+
+
+```{r}
+# TOFIX AddKMLines() shows all lines for all cohorts...
+
 # effect of trt.duration (without cohort A)
 km_df <- dfs_tidy$long %>%
   filter(subset == "fromenter" & trt.enter == 40)
@@ -193,9 +230,10 @@ ggsurvplot(fit = km_fit, data = km_df,
            facet.by = "cohort"
            #facet.by = "trt.recover"
            ) %++%
-  AddKMLines(km_df, dt.recover, 
+  AddKMLines(km_df, dt.recover,
              cohort
-             )
+             ) #%++%
+  #.test_AddKMLines()
 ```
 ## cohort x duration
 
