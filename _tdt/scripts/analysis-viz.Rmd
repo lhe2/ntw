@@ -43,9 +43,9 @@ dfs_tidy <- dfs_tidy %>% lapply(., \(x){
 })
 ```
 
-# ## kms/survival curves
+# # kms/survival curves
 
-# kms ctrls
+# ctrls
 
 ## by rec temp
 results
@@ -83,7 +83,8 @@ ggsurvplot(fit = km_fit, data = km_df,
 ```
 
 
-# kms exptal
+# exptal
+
 ## by rec temp
 ```{r}
 # from entering (drop cohort A)
@@ -293,12 +294,11 @@ ggsurvplot(fit = km_fit, data = km_df,
 ```
 
 
-# ## development stuff
 
-# times
+# # duration/times (WIP!!!)
 
 (from 2026-02 LB `results.Rmd`)
-
+## df prep
 ```{r}
 dfs <- list(
   noA = dfs_tidy$wide,
@@ -332,6 +332,7 @@ dfs <- list_modify(
       ungroup()
   })
 ```
+
 ## time to death from..
 
 ```{r}
@@ -436,6 +437,8 @@ dfs$all %>%
 
 ## time at 40C
 ```{r}
+# rec temp vs exposure
+
 .plotfn <- function(x){
   x %>%
     ggplot(aes(y = avg.timeat40,
@@ -480,7 +483,9 @@ dfs$all %>%
        caption = "exposure before death; (initial hours exposure to 40C before recovering)")
 ```
 
-## diff from ctrl
+## diff from ctrl (WIP!!!)
+
+### df prep
 
 ```{r}
 # some funky df prep
@@ -635,7 +640,7 @@ dfs$ss %>%
 ```
 
 
-
+# # development stuff
 
 # surv props
 
@@ -667,11 +672,13 @@ dfs_tidy$widesim %>%
   labs(caption = "N = total bugs at enter")
 ```
 
-# ## LB futzing
+# dev trajectories
 
 (futzing around w this for 2026-02 LB)
 
-## trajectories of cold ctrls
+## cold ctrls
+
+- TODO:
 
 ```{r}
 dfs_tidy$wide %>%
@@ -694,7 +701,7 @@ dfs_tidy$wide %>%
   scale_color_hue(direction = -1)
 ```
 
-## trajectories of hot return bugs (return - 3rd)
+## hot return bugs (return - 3rd)
 - uhh interesting but not quite it. i think just do the instars separately
 
 ```{r eval=FALSE}
@@ -716,7 +723,11 @@ dfs_tidy$wide %>%
   facet_grid(~ trt.duration)
 ```
 
-## masses of hot return bugs (@ return/3rd)
+# mass @ return
+
+(futzing around w this for 2026-02 LB)
+
+## expt bugs (@ return/3rd)
 
 ### util fns
 
