@@ -161,19 +161,14 @@ dfs_tidy[1:2] <- dfs_tidy[1:2] %>% # for the non-sim data only
       tt.exit.fromreturn = dt.exit - dt.return,
       
       # total time at 40C
-      tt.timeat40 = case_when(trt == 40 ~ tt.exit.fromenter,
-                              trt.duration != 0 & trt.enter == 40 ~ 
-                                tt.exit.fromreturn + trt.exposure
-                              # trt.duration != 0 & trt.enter == 40 & cohort == "A" ~
-                              #   tt.exit.fromreturn + 48,
-                              # trt.duration != 0 & trt.enter == 40 & cohort != "A" ~
-                              #   tt.exit.fromreturn + 24
+      tt.timeat40 = case_when(trt == 40 | (trt.duration > 0 & is.na(dt.recover)) ~ dt.exit,
+                              trt.duration > 0 & !is.na(tt.exit.fromreturn) ~ tt.exit.fromreturn + trt.exposure,
+                              trt.duration > 0 & !is.na(dt.recover) & is.na(dt.return) ~ as.numeric(trt.exposure)
       ),
       # NOTE maybe can omit this anyway bc this is sort of taken care of by `trt.exposure`?
       # (not entirely tho bc 40C doesnt get anything.)
       grp = case_when(cohort == "A" ~ "A",
                       TRUE ~ "B+C")
-      
     )
   })
 ```
