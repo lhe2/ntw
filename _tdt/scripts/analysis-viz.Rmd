@@ -288,8 +288,7 @@ ggsurvplot(fit = km_fit, data = km_df,
 ```
 
 
-
-# # duration/times (WIP!!!)
+# # (WIP) duration/times
 
 (orig from 2026-02 LB `results.Rmd`)
 
@@ -665,6 +664,102 @@ dfs_tidy$widesim %>%
   scale_x_discrete(guide = guide_axis(angle = 45)) +
   labs(caption = "N = total bugs at enter")
 ```
+
+## (WIP) stage of death
+
+```{r eval=FALSE}
+# died at which point in the time course? (testing...)
+# TOFIX 
+  # math depends on the trt type + cohort tho...
+  # should be dt.exit for trt != 40?, not dt.return lol?
+dfs_tidy$wideall %>%
+  filter(trt.enter == 40) %>%
+  mutate(stage.died = case_when((trt == 40 & dt.exit < 24) |
+                                  (trt != 40 & (dt.return < dt.return + 24)) ~ "24h",
+                                (trt == 40 & dt.exit < 48) |
+                                  (trt != 40 & (dt.return < dt.return + 48)) ~ "48h",
+                                (trt == 40 & dt.exit < 72) |
+                                  (trt != 40 & (dt.return < dt.return + 72)) ~ "72h",
+                                (trt == 40 & dt.exit < 96) |
+                                  (trt != 40 & (dt.return < dt.return + 96)) ~ "96h",
+                                (trt == 40 & dt.exit > 96) |
+                                  (trt != 40 & (dt.return > dt.return + 96))~ "> 96h",
+                                is.na(dt.recover) ~ "before recovery",
+                                is.na(dt.return) & (dt.exit < dt.recover + 24) ~ "24h (rec)",
+                                TRUE ~ "48h (rec)")) %>%
+  mutate(stage.died = factor(stage.died, levels = c("before recovery",
+                                                    "24h (rec)", "48h (rec)",
+                                                    "24h", "48h", "72h", "96h", "> 96h"))) %>%
+  ggplot(aes(x = trt.recover, fill = stage.died)) +
+  geom_bar(position = "fill") +
+  facet_grid(grp ~ trt.duration, drop = TRUE, scales = "free_x", space = "free")
+```
+
+```{r}
+# hours of exposure to 40C
+list(
+  dfs_tidy$wideall %>%
+    filter(trt.enter == 40,
+           cohort == "A") %>%
+    mutate(stage.died = case_when(dt.exit < 24 ~ "24h",
+                                  dt.exit < 48 ~ "48h*",
+                                  (trt == 40 & dt.exit < 72) |
+                                    (trt != 40 & dt.exit < dt.return + 24) ~ "72h",
+                                  (trt == 40 & dt.exit < 96) |
+                                    (trt != 40 & dt.exit < dt.return + 48) ~ "96h",
+                                  (trt == 40 & dt.exit > 96) |
+                                    (trt != 40 & dt.exit > dt.return + 48) ~ "> 96h",
+                                  is.na(dt.return) & (dt.exit < dt.recover + 24) ~ "rec 24h",
+                                  is.na(dt.return) & (dt.exit < dt.recover + 48) ~ "rec 48h"
+                                  )),
+  dfs_tidy$wideall %>%
+    filter(trt.enter == 40,
+           cohort != "A") %>%
+    mutate(stage.died = case_when(dt.exit < 24 ~ "24h",
+                                  (trt == 40 & dt.exit < 48) |
+                                    (trt != 40 & dt.exit < dt.return + 24) ~ "48h",
+                                  (trt == 40 & dt.exit < 72) |
+                                    (trt != 40 & dt.exit < dt.return + 24) ~ "72h",
+                                  (trt == 40 & dt.exit < 96) |
+                                    (trt != 40 & dt.exit < dt.return + 48) ~ "96h",
+                                  (trt == 40 & dt.exit > 96) |
+                                    (trt != 40 & dt.exit > dt.return + 48) ~ "> 96h",
+                                  is.na(dt.return) & (dt.exit < dt.recover + 24) ~ "rec 24h",
+                                  is.na(dt.return) & (dt.exit < dt.recover + 48) ~ "rec 48h"
+                                  ))
+) %>%
+  rbindlist() %>% 
+  # levels kinda wonky bc "rec" isnt the same for cohorts A / B+C
+  mutate(grp = factor(grp, levels = c("B+C", "A")),
+         stage.died = factor(stage.died, levels = c("24h", "48h*",
+                                                    "rec 24h", "rec 48h", 
+                                                    "48h", "72h", "96h", "> 96h"))) %>%
+  ggplot(aes(x = trt.recover, fill = stage.died)) +
+  geom_bar(position = "fill") +
+  facet_grid(grp ~ trt.duration, # NOTE prob should be trt.exposure ~ trt.duration but its wonky
+             #trt.exposure ~ trt.duration,
+             drop = TRUE, scales = "free_x", space = "free",
+             labeller = labeller(trt.duration = c(`0` = "0h recovery",
+                                                  `24` = "initial HS + 24h recovery",
+                                                  `48` = "initial HS + 48h recovery"),
+                                 grp = c(`A` = "48h initial HS",
+                                         `B+C` = "24h initial HS"),
+                                 )) +
+  scale_fill_manual(breaks = c("24h", "48h", "rec 24h", "rec 48h", "72h", "96h", "> 96h"),
+                    values = c("24h" = "#FED976", "48h*" = "#FEB24C", "48h" = "#FEB24C", 
+                               "rec 24h" = "#9ECAE1", "rec 48h" = "#6BAED6",
+                               "72h" = "#FC4E2A", "96h" = "#E31A1C", "> 96h" = "#B10026"),
+                    labels = c("0-24 h", "24-48 h",
+                               "rec 0-24 h", "rec 24-48 h", "48-72 h", "72-96 h", "> 96 h")
+                    ) +
+  labs(fill = "period died\n(hrs at 40C)",
+       y = "proportion",
+       x = "recovery temp (°C)",
+       title = "survival at 40C (hrs)",
+       caption = "*24h or **48h initial HS before recovery") +
+  theme_bw()
+```
+
 
 # dev trajectories
 
