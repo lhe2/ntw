@@ -7,7 +7,7 @@ date: "2026-01-07"
 
 rerun in entirety when need to update the data sheets!!
 
-LAST RUN: 2026-03-30
+LAST RUN: 2026-04-06
 
 ## roadmap
 
@@ -177,6 +177,8 @@ stdise col formats and calcs
   
 add jdate (tho mostly we are interested in the `dd.` cols for analyses)
 
+fix missing times
+
 ```{r datetime calcs}
 df_cleaned <- df_filtered %>%
   mutate(
@@ -227,7 +229,27 @@ df_cleaned <- df_filtered %>%
          ) %>%
   rename_with(., ~paste0("j", .), starts_with("date.")) %>% # days
   mutate(across(c(trt, trt.enter, trt.recover, trt.duration, trt.exposure, #fate,
-                  id, instar.exit, starts_with(c("mass", "jdate"))), as.numeric))
+                  id, instar.exit, starts_with(c("mass", "jdate"))), as.numeric)) %>%
+  
+  # fix missing recover/return times (typos in spreadsheet?)
+  mutate(
+    dh.recover = case_when(
+      is.na(dh.recover) & is.na(dh.return) & (dh.exit > dh.enter + trt.exposure) ~ 
+        dh.enter + trt.exposure,
+      TRUE ~ dh.recover),
+    jdate.recover = case_when(
+      is.na(jdate.recover) & !is.na(dh.recover) & cohort == "A" ~ jdate.enter + 2,
+      is.na(jdate.recover) & !is.na(dh.recover) & cohort != "A" ~ jdate.enter + 1,
+      TRUE ~ jdate.recover),
+    dh.return = case_when(
+      is.na(dh.return) & (dh.exit > dh.recover + trt.duration) ~ 
+        dh.recover + trt.duration,
+      TRUE ~ dh.return),
+    jdate.return = case_when(
+      is.na(jdate.return) & !is.na(dh.return) & trt.duration == 24 ~ jdate.recover + 1,
+      is.na(jdate.return) & !is.na(dh.return) & trt.duration == 48 ~ jdate.recover + 2,
+      TRUE ~ jdate.return)
+    )
 ```
 
 # export
