@@ -326,9 +326,9 @@ dfs <- list_modify(
   })
 ```
 
-## time to death vs rec temp/dur
+### time to death vs rec temp/dur
 
-### from enter
+#### from enter
 ```{r}
 .plotfn <- function(x){
   x %>%
@@ -374,7 +374,7 @@ dfs$all %>%
        caption = "from entering;\n(initial hours exposure to 40C before recovering)")
 ```
 
-### from return
+#### from return
 ```{r}
 .plotfn <- function(x){
   x %>%
@@ -424,10 +424,7 @@ dfs$all %>%
   labs(caption = "from return;\n(initial hours exposure to 40C before recovering)")
 ```
 
-## time at 40C vs exposure (TODO/WIP)
-
-- WIP!!! cant ducking do math) 
-- maybe only compare to the bugs that survived after the initial 24h?
+### exposure time vs rec temp
 
 ```{r}
 .plotfn <- function(x){
@@ -474,8 +471,139 @@ dfs$all %>%
        caption = "exposure before death; (initial hours exposure to 40C before recovering)")
 ```
 
-## exit time diff from ctrl (WIP!!!)
+## (TODO/WIP) survival time vs exposure
 
+- NOTE:
+  - `dt.exit` = absolute hrs
+  - `tt.exit.from....` = depends on surviving to that point first.
+
+### prep fns
+```{r}
+.calcfn <- function(x){
+  x %>%
+    # fyi that grouping by "cohort" fully parses out "grp"
+    group_by(across(c("grp", "cohort", starts_with("trt")))) %>% 
+    summarise(n = n(),
+              across(.cols = c(starts_with("tt"), "dt.exit"),
+                     .fns = list(avg = ~ mean(.x, na.rm = TRUE),
+                                 se = se),
+                     .names = "{.fn}.{.col}")
+    ) #%>% View()
+}
+```
+
+### early attempts
+```{r eval=FALSE}
+# early attempts. keep for reference
+
+# avgs
+dfs_tidy$longall %>%
+  filter(subset == "fromreturn",
+         trt.enter == 40) %>%
+  .calcfn() %>%
+  ggplot(aes(#y = avg.tt.exit,
+             y = avg.dt.exit,
+             x = avg.tt.timeat40,
+             #col = trt.exposure,
+             shape = trt.recover,
+             #group = trt.exposure
+             )) +
+  geom_point(aes(col = trt.exposure), size = 2) +
+  #geom_line(aes(lty = trt.recover)) +
+  facet_grid(#trt.recover 
+             ~ trt.duration) +
+  labs(caption = "faceted by recovery time (h)")
+
+# individs; figuring out which subset to use...
+  # tho idk wtf the grouping/lines should be lol so ignore this tbh
+dfs_tidy$longall %>%
+  filter(#subset == "fromreturn",
+         trt.enter == 40) %>%
+  ggplot(aes(y = dt.exit, x = tt.timeat40,
+             shape = trt.recover,
+             col = trt.exposure,
+             lty = trt.exposure,
+             group = interaction(trt.exposure, trt.duration)
+             #group = interaction(trt.duration, trt.recover, trt.exposure)
+             )) +
+  geom_point(size = 1.5) +
+  geom_line() +
+  #geom_line(aes(lty = trt.duration)) +
+  # scale_shape_manual(values = c(16, 17), na.value = 15) + # if shape = trt.exposure
+  #facet_grid(~ trt.duration)
+  facet_wrap(~subset)
+```
+
+```{r}
+# better idea of grouping all the avgs
+
+.plotfn <- function(x){
+  x %>%
+    ggplot(aes(y = avg.dt.exit,
+           x = avg.tt.timeat40,
+           lty = trt.exposure,
+           shape = trt.recover,
+           group = interaction(trt.duration, trt.exposure)
+           )) +
+    geom_point(aes(col = trt.duration), 
+               size = 2) +
+    geom_line() +
+    # geom_errorbar(aes(col = trt.duration,
+    #                   ymax = avg.dt.exit + se.dt.exit,
+    #                   ymin = avg.dt.exit - se.dt.exit),
+    #               lty = "solid", width = 1.5, show.legend = FALSE) +
+    # geom_errorbarh(aes(col = trt.duration,
+    #                    xmax = avg.tt.timeat40 + se.tt.timeat40,
+    #                    xmin = avg.tt.timeat40 - se.tt.timeat40),
+    #                lty = "solid", height = 4, show.legend = FALSE) +
+    scale_linetype_manual(values = c(1, 2), na.value = 3) + # if lty = trt.exposure
+    #scale_shape_manual(values = c(16, 17), na.value = 4) #+ # if shape = trt.exposure
+    #facet_wrap(~trt.duration) + labs(caption = "faceted by recovery time (h)") +
+    labs(y = "time to death",
+         x = "total time at 40C",
+         title = "time to death vs time at 40C",
+         lty = "time at 40C\nbefore recovery",
+         col = "recovery duration",
+         shape = "recovery\ntemperature (°C)")
+}
+
+# from return
+dfs_tidy$longall %>%
+  filter(subset == "fromreturn",
+         trt.enter == 40) %>%
+  .calcfn() %>%
+  .plotfn() +
+  geom_text(aes(label = n), hjust = -0.5, position = "jitter") +
+  labs(caption = "mean times (h);\nn = survived to return")
+
+# from enter
+dfs_tidy$longall %>%
+  filter(subset == "fromenter",
+         trt.enter == 40) %>%
+  .calcfn() %>% 
+  .plotfn() +
+  geom_text(aes(label = n), vjust = -0.5, hjust = -0.5, position = "jitter") +
+  labs(caption = "mean times (h);\nn = from entering")
+
+# from enter; filter out early deaths
+dfs_tidy$longall %>%
+  filter(trt.enter == 40,
+         subset == "fromenter") %>%
+  #filter out the ones who didnt survive the first 24 hrs
+  #filter(dt.exit > 24) %>% ## not a big diff bc not that many overall..
+  
+  # filter out the ones that survived to recovery (more interesting imo?)
+  filter(!is.na(dt.recover)) %>%
+  .calcfn() %>%
+  .plotfn() +
+  geom_text(aes(label = n), vjust = -0.5, hjust = -0.5, position = "jitter") +
+  labs(#caption = "mean times (h);\nn = survived 1st 24hrs"
+       caption = "mean times (h);\nn = survived initial exposure to 40C")
+```
+
+
+
+## (WIP) exit time diff from ctrl
 
 ```{r}
 # try 1: just trying stuff out... (figuring out how to do the math)
