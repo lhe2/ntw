@@ -1,5 +1,7 @@
 # ntw
 
+**ARCHIVED ON 2026-06-08:** finally got around to properly splitting up this monorepo into multiple repos lol.
+
 code associated with analysing data from various ntw-related expts 👍
 
 this repo compiles multiple projects, so see also project-specific readmes.
